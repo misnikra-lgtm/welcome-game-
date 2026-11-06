@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
   <title>BUON COMPLEANNO, AMORE MIO!</title>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
   <style>
@@ -15,19 +15,22 @@
       -webkit-touch-callout: none;
     }
     html, body {
-      width: 100%;
-      height: 100%;
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
       height: 100dvh;
       overflow: hidden;
       background: #0a060d;
       font-family: 'Montserrat', sans-serif;
-      touch-action: none;
+      touch-action: none !important;
+      -webkit-text-size-adjust: 100%;
     }
     #game-container {
-      position: relative;
-      width: 100vw;
-      height: 100vh;
-      height: 100dvh;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
       display: flex;
       flex-direction: column;
       background: #0a060d;
@@ -91,7 +94,7 @@
 
     #touch-controls {
       position: absolute;
-      bottom: max(90px, calc(env(safe-area-inset-bottom, 20px) + 70px));
+      bottom: max(85px, calc(env(safe-area-inset-bottom, 20px) + 65px));
       left: 0;
       right: 0;
       padding: 0 18px;
@@ -188,12 +191,12 @@
     }
     .input-field {
       width: 100%;
-      padding: 13px 14px;
+      padding: 14px 14px;
       border-radius: 12px;
       border: 1.5px solid rgba(212, 175, 55, 0.6);
       background: rgba(10, 8, 14, 0.95);
       color: #fff;
-      font-size: 16px;
+      font-size: 18px !important; /* Больше 16px предотвращает автозум в Safari */
       font-weight: 600;
       text-align: center;
       margin-bottom: 14px;
@@ -290,7 +293,6 @@
     </div>
   </div>
 
-  <!-- Стартовый экран -->
   <div class="screen-overlay" id="start-screen">
     <h1 class="gold-title">BUON COMPLEANNO,<br>AMORE MIO!</h1>
     <p class="subtitle">Quiz Show Italiano • Римские каникулы</p>
@@ -356,6 +358,18 @@
 </div>
 
 <script>
+// Жесткая блокировка жестов зума Safari
+document.addEventListener('gesturestart', e => e.preventDefault(), { passive: false });
+document.addEventListener('gesturechange', e => e.preventDefault(), { passive: false });
+document.addEventListener('gestureend', e => e.preventDefault(), { passive: false });
+
+let lastTouch = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if (now - lastTouch <= 300) e.preventDefault();
+  lastTouch = now;
+}, false);
+
 const DB_URL = "https://game-welcome-default-rtdb.firebaseio.com";
 let isGameGateOpen = true;
 let localScores = JSON.parse(localStorage.getItem('LOCAL_SCORES') || '[]');
@@ -384,7 +398,6 @@ function resetAllScores() {
   } catch(e) {}
 }
 
-// Защищенный звуковой движок
 class SoundEngine {
   constructor() { this.ctx = null; }
   init() {
@@ -439,7 +452,6 @@ class SoundEngine {
   }
   stomp() {
     this.init();
-    // Сочный звук раздавливания помидора
     this.playTone(280, 'sawtooth', 0.06);
     this.playTone(140, 'square', 0.12, 0.03);
   }
@@ -451,7 +463,6 @@ class SoundEngine {
 }
 const sound = new SoundEngine();
 
-// Игровые параметры
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
@@ -511,7 +522,6 @@ class Player {
     this.grounded = false;
     this.checkPlatformCollisions(platforms, false);
 
-    // Падение в открытую пропасть
     if (this.y > canvas.height + 40) {
       handlePitFall();
     }
@@ -638,7 +648,6 @@ class Block {
   }
 }
 
-// КЛАСС ВРАГА-ПОМИДОРА С ВОЗМОЖНОСТЬЮ РАЗДАВЛИВАНИЯ
 class TomatoEnemy {
   constructor(x, y, range = 180, speed = 1.5) {
     this.x = x; this.y = y; this.startX = x;
@@ -661,7 +670,6 @@ class TomatoEnemy {
     ctx.translate(this.x - cameraX, this.y);
 
     if (!this.alive) {
-      // Раздавленный, сплющенный помидор на земле
       ctx.fillStyle = '#b71c1c';
       ctx.beginPath();
       ctx.ellipse(this.w / 2, this.h - 4, 22, 6, 0, 0, Math.PI * 2);
@@ -669,19 +677,16 @@ class TomatoEnemy {
       ctx.fillStyle = '#2e7d32';
       ctx.fillRect(this.w / 2 - 4, this.h - 9, 8, 4);
     } else {
-      // Сочный круглый итальянский помидор
       ctx.fillStyle = '#e53935';
       ctx.beginPath();
       ctx.arc(this.w / 2, this.h / 2 + 2, 15, 0, Math.PI * 2);
       ctx.fill();
 
-      // Блик на помидоре
       ctx.fillStyle = '#ff8a80';
       ctx.beginPath();
       ctx.arc(this.w / 2 - 5, this.h / 2 - 3, 4, 0, Math.PI * 2);
       ctx.fill();
 
-      // Зелёный хвостик
       ctx.fillStyle = '#2e7d32';
       ctx.beginPath();
       ctx.moveTo(this.w / 2, this.h / 2 - 14);
@@ -690,7 +695,6 @@ class TomatoEnemy {
       ctx.closePath();
       ctx.fill();
 
-      // Забавные сердитые глазки
       ctx.fillStyle = '#fff';
       const lookOffset = this.speed > 0 ? 3 : -3;
       ctx.fillRect(this.w / 2 - 7 + lookOffset, this.h / 2 - 1, 5, 6);
@@ -750,7 +754,6 @@ function createCoinParticle(x, y) {
   }
 }
 
-// Эффект брызг при раздавливании помидора
 function createTomatoSplash(x, y) {
   const colors = ['#e53935', '#b71c1c', '#ff5252', '#43a047'];
   for (let i = 0; i < 14; i++) {
@@ -887,301 +890,4 @@ function gameLoop() {
     canvas.height = window.innerHeight;
     buildLevel();
   }
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  if (gameState === 'PLAYING') {
-    gameTimer = Math.floor((Date.now() - startTime) / 1000);
-    const m = String(Math.floor(gameTimer / 60)).padStart(2, '0');
-    const s = String(gameTimer % 60).padStart(2, '0');
-    document.getElementById('time-display').textContent = `${m}:${s}`;
-    document.getElementById('coin-count').textContent = coins;
-
-    player.update(platforms);
-
-    const progressPct = Math.min(100, Math.round((player.x / 6500) * 100));
-    document.getElementById('progress-bar').style.width = `${progressPct}%`;
-
-    cameraX = player.x - canvas.width * 0.35;
-    if (cameraX < 0) cameraX = 0;
-    if (cameraX > levelWidth - canvas.width) cameraX = levelWidth - canvas.width;
-
-    floatingCoins.forEach(coin => {
-      if (!coin.collected) {
-        coin.update();
-        if (
-          player.x < coin.x + coin.w &&
-          player.x + player.w > coin.x &&
-          player.y < coin.y + coin.h &&
-          player.y + player.h > coin.y
-        ) {
-          coin.collected = true;
-          coins++;
-          sound.coin();
-          createCoinParticle(coin.x + coin.w / 2, coin.y + coin.h / 2);
-        }
-      }
-    });
-
-    // ПРОВЕРКА СТОЛКНОВЕНИЯ С ПОМИДОРАМИ: ДАВИТЬ СВЕРХУ ИЛИ ПОЛУЧАТЬ УРОН СБОКУ
-    enemies.forEach(e => {
-      e.update();
-      if (e.alive) {
-        const overlapX = player.x < e.x + e.w && player.x + player.w > e.x;
-        const overlapY = player.y < e.y + e.h && player.y + player.h > e.y;
-
-        if (overlapX && overlapY) {
-          // Если Всеволод приземляется сверху на помидор
-          const isStomp = player.vy > 0 && (player.y + player.h - player.vy) <= (e.y + 16);
-
-          if (isStomp) {
-            e.alive = false;
-            player.vy = -10.5; // Отскок вверх от раздавленного помидора
-            sound.stomp();
-            createTomatoSplash(e.x + e.w / 2, e.y + e.h / 2);
-            coins += 2; // Бонус 2 монеты
-            enemiesDefeated++;
-          } else {
-            // Столкновение сбоку
-            if (player.invulnerableTimer === 0) {
-              handlePlayerHit();
-            }
-          }
-        }
-      }
-    });
-
-    platforms.forEach(p => p.update());
-    if (Math.abs(player.x - princess.x) < 45) completeGame(true);
-  }
-
-  drawBackground(ctx);
-  platforms.forEach(p => p.draw(ctx));
-  floatingCoins.forEach(c => c.draw(ctx));
-  enemies.forEach(e => e.draw(ctx));
-  if (princess) princess.draw(ctx);
-  player.draw(ctx);
-
-  particles.forEach((pt, idx) => {
-    pt.x += pt.vx; pt.y += pt.vy; pt.vy += 0.22; pt.alpha -= 0.03;
-    ctx.fillStyle = pt.color; ctx.globalAlpha = Math.max(0, pt.alpha);
-    ctx.fillRect(pt.x - cameraX, pt.y, 6, 6);
-    ctx.globalAlpha = 1;
-    if (pt.alpha <= 0) particles.splice(idx, 1);
-  });
-
-  requestAnimationFrame(gameLoop);
-}
-
-function handlePlayerHit() {
-  lives--; sound.hurt(); updateLivesHUD();
-  if (lives <= 0) {
-    completeGame(false);
-  } else {
-    player.invulnerableTimer = 110;
-    player.vy = -6;
-    player.vx = player.facing * 3;
-  }
-}
-
-function handlePitFall() {
-  lives--; sound.hurt(); updateLivesHUD();
-  if (lives <= 0) {
-    completeGame(false);
-  } else {
-    let targetX = player.x + 160;
-    for (let p of platforms) {
-      if (p.x > player.x && !p.isBlock) {
-        targetX = p.x + 30;
-        break;
-      }
-    }
-    player.x = targetX;
-    player.y = groundY - 90;
-    player.vy = -4;
-    player.vx = 0;
-    player.invulnerableTimer = 110;
-  }
-}
-
-function updateLivesHUD() {
-  let str = ''; for (let i = 0; i < lives; i++) str += '❤️';
-  document.getElementById('hearts-display').textContent = str || '💔';
-}
-
-function startGame() {
-  sound.init();
-  const nameInput = document.getElementById('player-name-input').value.trim();
-  playerName = nameInput || 'Гость';
-  document.getElementById('player-hud-name').textContent = playerName;
-
-  if (!isGameGateOpen) {
-    showScreen('waiting-screen');
-    gameState = 'WAITING';
-    return;
-  }
-  launchRun();
-}
-
-function launchRun() {
-  lives = 3; coins = 0; enemiesDefeated = 0; maxDistanceReached = 80;
-  startTime = Date.now();
-  updateLivesHUD();
-  buildLevel();
-  player.reset();
-  document.getElementById('hud').style.display = 'flex';
-  document.getElementById('progress-wrap').style.display = 'block';
-  document.getElementById('touch-controls').style.display = 'flex';
-  hideAllScreens();
-  gameState = 'PLAYING';
-}
-
-function completeGame(isVictory) {
-  gameState = 'RESULT';
-  document.getElementById('hud').style.display = 'none';
-  document.getElementById('progress-wrap').style.display = 'none';
-  document.getElementById('touch-controls').style.display = 'none';
-
-  if (isVictory) sound.victory();
-
-  const distancePct = Math.min(100, Math.round((maxDistanceReached / 6500) * 100));
-  const distanceScore = distancePct * 30;
-  const coinScore = coins * 100;
-  const enemyScore = enemiesDefeated * 150;
-
-  let totalScore = 0;
-  let breakdownText = "";
-
-  if (isVictory) {
-    const timeBonus = Math.max(0, (120 - gameTimer) * 15);
-    const lifeBonus = lives * 500;
-    const winBonus = 1000;
-    totalScore = distanceScore + coinScore + enemyScore + timeBonus + lifeBonus + winBonus;
-
-    document.getElementById('result-title').textContent = "VITTORIA!";
-    document.getElementById('result-title').style.color = "#ffd700";
-    document.getElementById('result-subtitle').textContent = "Оксана дождалась Всеволода!";
-    document.getElementById('result-user-label').textContent = `${playerName}, великолепный результат!`;
-    breakdownText = `
-      Пройдено: <b>${distancePct}%</b> (+${distanceScore}) • Монеты: <b>${coins}</b> (+${coinScore})<br>
-      Раздавлено помидоров: <b>${enemiesDefeated}</b> (+${enemyScore}) • Жизни: <b>${lives}</b> (+${lifeBonus})<br>
-      Бонус победы: <b>+${winBonus}</b> • Время: <b>${gameTimer}с</b> (+${timeBonus})
-    `;
-  } else {
-    const rawScore = distanceScore + coinScore + enemyScore;
-    totalScore = Math.round(rawScore * 0.75);
-
-    document.getElementById('result-title').textContent = "BUON TENTATIVO!";
-    document.getElementById('result-title').style.color = "#ff8c42";
-    document.getElementById('result-subtitle').textContent = "Помидоры перехватили Всеволода!";
-    document.getElementById('result-user-label').textContent = `${playerName}, очки сохранены в зачет!`;
-    breakdownText = `
-      Пройдено: <b>${distancePct}%</b> (+${distanceScore}) • Монеты: <b>${coins}</b> (+${coinScore})<br>
-      Раздавлено помидоров: <b>${enemiesDefeated}</b> (+${enemyScore})<br>
-      <span style="color:#ffd700;">Коэффициент сохранения (75%): <b>${totalScore} б.</b></span>
-    `;
-  }
-
-  saveScore({
-    name: playerName,
-    score: totalScore,
-    progress: distancePct,
-    time: gameTimer,
-    isVictory: isVictory,
-    timestamp: Date.now()
-  });
-
-  document.getElementById('final-score-val').textContent = totalScore;
-  document.getElementById('result-stats-details').innerHTML = breakdownText;
-  renderLeaderboard();
-  showScreen('result-screen');
-}
-
-function renderLeaderboard() {
-  const box = document.getElementById('leaderboard-list');
-  box.innerHTML = '';
-  localScores.forEach((item, index) => {
-    const isMe = item.name === playerName;
-    const row = document.createElement('div');
-    row.className = `leader-row ${isMe ? 'me' : ''}`;
-    row.innerHTML = `
-      <span>${index + 1}. ${item.name} ${isMe ? ' (ВЫ)' : ''} ${item.isVictory ? '👑' : ''}</span>
-      <span>${item.score} б. (${item.progress || 0}%)</span>
-    `;
-    box.appendChild(row);
-  });
-}
-
-function showScreen(id) { hideAllScreens(); document.getElementById(id).classList.remove('hidden'); }
-function hideAllScreens() { document.querySelectorAll('.screen-overlay').forEach(el => el.classList.add('hidden')); }
-
-// Панель модератора
-document.getElementById('admin-btn').onclick = () => {
-  document.getElementById('admin-modal').classList.remove('hidden');
-  document.getElementById('admin-auth-box').classList.remove('hidden');
-  document.getElementById('admin-panel-box').classList.add('hidden');
-};
-document.getElementById('admin-close-btn').onclick = () => {
-  document.getElementById('admin-modal').classList.add('hidden');
-};
-document.getElementById('admin-login-btn').onclick = () => {
-  const pin = document.getElementById('admin-pin-input').value;
-  if (pin === '1234' || pin === '') {
-    document.getElementById('admin-auth-box').classList.add('hidden');
-    document.getElementById('admin-panel-box').classList.remove('hidden');
-    updateAdminGateBtn();
-  } else {
-    alert('Неверный PIN ведущего!');
-  }
-};
-function updateAdminGateBtn() {
-  document.getElementById('gate-status').textContent = isGameGateOpen ? 'ОТКРЫТА ДЛЯ ГОСТЕЙ' : 'ЗАКРЫТА (ОЖИДАНИЕ)';
-  document.getElementById('admin-toggle-gate-btn').style.background = isGameGateOpen ? '#27ae60' : '#e67e22';
-}
-document.getElementById('admin-toggle-gate-btn').onclick = () => {
-  isGameGateOpen = !isGameGateOpen;
-  updateAdminGateBtn();
-};
-document.getElementById('admin-reset-scores-btn').onclick = () => {
-  if (confirm('Точно сбросить результаты всех гостей на сервере?')) {
-    resetAllScores();
-    alert('Все рекорды вечера успешно очищены!');
-  }
-};
-document.getElementById('admin-panel-close-btn').onclick = () => {
-  document.getElementById('admin-modal').classList.add('hidden');
-};
-
-// Сенсорные кнопки геймпада
-function bindTouch(id, keyName) {
-  const el = document.getElementById(id);
-  const start = (e) => { e.preventDefault(); keys[keyName] = true; el.classList.add('active'); sound.init(); };
-  const end = (e) => { e.preventDefault(); keys[keyName] = false; el.classList.remove('active'); };
-  el.addEventListener('pointerdown', start);
-  el.addEventListener('pointerup', end);
-  el.addEventListener('pointercancel', end);
-}
-bindTouch('btn-left', 'left');
-bindTouch('btn-right', 'right');
-bindTouch('btn-jump', 'jump');
-
-window.addEventListener('keydown', e => {
-  sound.init();
-  if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
-  if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
-  if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') keys.jump = true;
-});
-window.addEventListener('keyup', e => {
-  if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
-  if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
-  if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') keys.jump = false;
-});
-
-// Кнопки
-document.getElementById('start-game-btn').onclick = startGame;
-document.getElementById('retry-game-btn').onclick = launchRun;
-
-// Запуск игрового цикла
-gameLoop();
-</script>
-</body>
-</html>
+  ctx
