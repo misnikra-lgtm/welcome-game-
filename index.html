@@ -158,9 +158,7 @@
       text-align: center;
       color: #fff;
     }
-    .screen-overlay.hidden {
-      display: none !important;
-    }
+    .screen-overlay.hidden { display: none !important; }
 
     .gold-title {
       font-family: 'Cinzel', serif;
@@ -216,9 +214,7 @@
       cursor: pointer;
       touch-action: manipulation;
     }
-    .btn-main:active {
-      transform: scale(0.97);
-    }
+    .btn-main:active { transform: scale(0.97); }
 
     .admin-gear {
       position: absolute;
@@ -226,105 +222,4 @@
       right: 12px;
       font-size: 20px;
       background: rgba(20, 16, 26, 0.85);
-      border: 1px solid rgba(212, 175, 55, 0.5);
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      z-index: 120;
-      color: #d4af37;
-    }
-
-    .leader-table {
-      width: 100%;
-      max-height: 180px;
-      overflow-y: auto;
-      margin: 10px 0 16px 0;
-      border-radius: 8px;
-      background: rgba(10, 8, 14, 0.8);
-      border: 1px solid rgba(212, 175, 55, 0.3);
-    }
-    .leader-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 7px 10px;
-      font-size: 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    }
-    .leader-row.me {
-      background: rgba(212, 175, 55, 0.3);
-      font-weight: 700;
-      color: #ffd700;
-    }
-  </style>
-</head>
-<body>
-
-<div id="game-container">
-  <div class="admin-gear" id="admin-btn">⚙️</div>
-
-  <div id="hud">
-    <div class="hud-card">
-      <span class="gold">🪙 <span id="coin-count">0</span></span>
-      <span>•</span>
-      <span class="hearts" id="hearts-display">❤️❤️❤️</span>
-    </div>
-    <div class="hud-card">
-      <span id="player-hud-name">Гость</span>
-      <span class="gold">⏱️ <span id="time-display">00:00</span></span>
-    </div>
-  </div>
-
-  <div id="progress-wrap">
-    <div id="progress-bar"></div>
-  </div>
-
-  <canvas id="canvas"></canvas>
-
-  <div id="touch-controls">
-    <div class="d-pad">
-      <div class="t-btn" id="btn-left">◀</div>
-      <div class="t-btn" id="btn-right">▶</div>
-    </div>
-    <div class="action-buttons">
-      <div class="t-btn jump-btn" id="btn-jump">SALTO</div>
-    </div>
-  </div>
-
-  <!-- Стартовое окно -->
-  <div class="screen-overlay" id="start-screen">
-    <h1 class="gold-title">BUON COMPLEANNO,<br>AMORE MIO!</h1>
-    <p class="subtitle">Quiz Show Italiano • Римские каникулы</p>
-    <div class="modal-box">
-      <p style="font-size: 13px; margin-bottom: 12px; color: #f0e6d2;">
-        Всеволод спешит через ночной Рим к Оксане!<br>Введите имя для участия в соревновании:
-      </p>
-      <input type="text" id="player-name-input" class="input-field" placeholder="Ваше имя / Никнейм" maxlength="15">
-      <button class="btn-main" id="start-game-btn" type="button">НАЧАТЬ ИГРУ</button>
-    </div>
-  </div>
-
-  <div class="screen-overlay hidden" id="waiting-screen">
-    <h1 class="gold-title">BUON COMPLEANNO,<br>AMORE MIO!</h1>
-    <p class="subtitle">Приготовьтесь к празднику!</p>
-    <div class="modal-box">
-      <div style="font-size: 38px; margin-bottom: 10px;">⏳</div>
-      <p style="font-size: 14px; color: #f0e6d2; margin-bottom: 8px;">
-        Ведущий ещё не открыл старт игры!
-      </p>
-      <p style="font-size: 11px; color: #a89f91;">
-        Оставайтесь на странице, игра запустится автоматически!
-      </p>
-    </div>
-  </div>
-
-  <div class="screen-overlay hidden" id="result-screen">
-    <h1 class="gold-title" id="result-title">VITTORIA!</h1>
-    <p class="subtitle" id="result-subtitle">Оксана дождалась Всеволода!</p>
-    <div class="modal-box">
-      <p style="font-size: 14px; color: #ffd700; margin-bottom: 4px;" id="result-user-label"></p>
-      <p style="font-size: 26px; font-weight: 900; margin-bottom: 6px; color: #fff;">
-        <span id="final-score-val">0</span> <span style="font-
+      border: 1px solid rgba(212, 175, 5
