@@ -30,7 +30,7 @@
       height: 100dvh;
       display: flex;
       flex-direction: column;
-      background: #000;
+      background: #0a060d;
       overflow: hidden;
     }
     canvas {
@@ -40,12 +40,13 @@
       image-rendering: pixelated;
     }
 
+    /* HUD */
     #hud {
       position: absolute;
       top: max(10px, env(safe-area-inset-top, 10px));
       left: 10px;
       right: 56px;
-      display: flex;
+      display: none;
       justify-content: space-between;
       align-items: center;
       pointer-events: none;
@@ -78,6 +79,7 @@
       border-radius: 4px;
       overflow: hidden;
       z-index: 45;
+      display: none;
       pointer-events: none;
     }
     #progress-bar {
@@ -94,7 +96,7 @@
       left: 0;
       right: 0;
       padding: 0 18px;
-      display: flex;
+      display: none;
       justify-content: space-between;
       align-items: center;
       z-index: 100;
@@ -216,275 +218,4 @@
       top: max(10px, env(safe-area-inset-top, 10px));
       right: 12px;
       font-size: 20px;
-      background: rgba(20, 16, 26, 0.85);
-      border: 1px solid rgba(212, 175, 55, 0.5);
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      z-index: 120;
-      color: #d4af37;
-    }
-
-    .leader-table {
-      width: 100%;
-      max-height: 180px;
-      overflow-y: auto;
-      margin: 10px 0 16px 0;
-      border-radius: 8px;
-      background: rgba(10, 8, 14, 0.8);
-      border: 1px solid rgba(212, 175, 55, 0.3);
-    }
-    .leader-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 7px 10px;
-      font-size: 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    }
-    .leader-row.me {
-      background: rgba(212, 175, 55, 0.3);
-      font-weight: 700;
-      color: #ffd700;
-    }
-  </style>
-</head>
-<body>
-
-<div id="game-container">
-  <div class="admin-gear" id="admin-btn">⚙️</div>
-
-  <div id="hud" style="display: none;">
-    <div class="hud-card">
-      <span class="gold">🪙 <span id="coin-count">0</span></span>
-      <span>•</span>
-      <span class="hearts" id="hearts-display">❤️❤️❤️</span>
-    </div>
-    <div class="hud-card">
-      <span id="player-hud-name">Гость</span>
-      <span class="gold">⏱️ <span id="time-display">00:00</span></span>
-    </div>
-  </div>
-
-  <div id="progress-wrap" style="display: none;">
-    <div id="progress-bar"></div>
-  </div>
-
-  <canvas id="canvas"></canvas>
-
-  <div id="touch-controls" style="display: none;">
-    <div class="d-pad">
-      <div class="t-btn" id="btn-left">◀</div>
-      <div class="t-btn" id="btn-right">▶</div>
-    </div>
-    <div class="action-buttons">
-      <div class="t-btn jump-btn" id="btn-jump">SALTO</div>
-    </div>
-  </div>
-
-  <div class="screen-overlay" id="start-screen">
-    <h1 class="gold-title">IL MIO GIOCO</h1>
-    <p class="subtitle">Quiz Show Italiano • Римские каникулы</p>
-    <div class="modal-box">
-      <p style="font-size: 13px; margin-bottom: 12px; color: #f0e6d2;">
-        Всеволод спешит через ночной Рим к Оксане!<br>Введите имя для участия в игре:
-      </p>
-      <input type="text" id="player-name-input" class="input-field" placeholder="Ваше имя / Никнейм" maxlength="15">
-      <button class="btn-main" id="start-game-btn">НАЧАТЬ ИГРУ</button>
-    </div>
-  </div>
-
-  <div class="screen-overlay hidden" id="waiting-screen">
-    <h1 class="gold-title">IL MIO GIOCO</h1>
-    <p class="subtitle">Приготовьтесь к празднику!</p>
-    <div class="modal-box">
-      <div style="font-size: 38px; margin-bottom: 10px;">⏳</div>
-      <p style="font-size: 14px; color: #f0e6d2; margin-bottom: 8px;">
-        Ведущий ещё не открыл старт игры!
-      </p>
-      <p style="font-size: 11px; color: #a89f91;">
-        Оставайтесь на странице, игра запустится автоматически!
-      </p>
-    </div>
-  </div>
-
-  <div class="screen-overlay hidden" id="result-screen">
-    <h1 class="gold-title" id="result-title">VITTORIA!</h1>
-    <p class="subtitle" id="result-subtitle">Оксана дождалась Всеволода!</p>
-    <div class="modal-box">
-      <p style="font-size: 14px; color: #ffd700; margin-bottom: 4px;" id="result-user-label"></p>
-      <p style="font-size: 26px; font-weight: 900; margin-bottom: 6px; color: #fff;">
-        <span id="final-score-val">0</span> <span style="font-size: 14px; color: #d4af37;">БАЛЛОВ</span>
-      </p>
-      <div style="font-size: 11px; color: #ccc; line-height: 1.5; margin-bottom: 10px;" id="result-stats-details"></div>
-      
-      <p style="font-size: 12px; font-weight: 700; color: #d4af37; margin-bottom: 6px;">ТАБЛИЦА РЕЙТИНГА ГОСТЕЙ</p>
-      <div class="leader-table" id="leaderboard-list"></div>
-
-      <button class="btn-main" id="retry-game-btn">ИГРАТЬ ЕЩЁ РАЗ</button>
-    </div>
-  </div>
-
-  <div class="screen-overlay hidden" id="admin-modal">
-    <h1 class="gold-title" style="font-size: 22px;">ПУЛЬТ ВЕДУЩЕГО</h1>
-    <div class="modal-box" id="admin-auth-box">
-      <p style="font-size: 12px; margin-bottom: 10px;">Введите PIN ведущего:</p>
-      <input type="password" id="admin-pin-input" class="input-field" placeholder="PIN">
-      <button class="btn-main" id="admin-login-btn">ВОЙТИ</button>
-      <button class="btn-main" style="background: #333; color: #fff; margin-top: 8px;" id="admin-close-btn">ЗАКРЫТЬ</button>
-    </div>
-    <div class="modal-box hidden" id="admin-panel-box">
-      <p style="font-size: 13px; margin-bottom: 10px; color: #ffd700;">Управление праздником</p>
-      <button class="btn-main" id="admin-toggle-gate-btn" style="margin-bottom: 10px; font-size: 13px;">
-        СТАТУС ИГРЫ: <span id="gate-status">ОТКРЫТА</span>
-      </button>
-      <button class="btn-main" id="admin-reset-scores-btn" style="background: #ff3366; color: #fff; font-size: 13px; margin-bottom: 10px;">
-        🗑️ СБРОСИТЬ ВСЕ РЕКОРДЫ ГОСТЕЙ
-      </button>
-      <button class="btn-main" style="background: #333; color: #fff; font-size: 13px;" id="admin-panel-close-btn">ВЫЙТИ</button>
-    </div>
-  </div>
-</div>
-
-<script>
-window.addEventListener('DOMContentLoaded', () => {
-  const DB_URL = "https://game-welcome-default-rtdb.firebaseio.com";
-  let isGameGateOpen = true;
-  let cloudScores = [];
-
-  function safeFetch(url, options = {}) {
-    return fetch(url, options).catch(err => {
-      console.warn("Offline fallback");
-      return null;
-    });
-  }
-
-  async function fetchGateStatus() {
-    try {
-      const res = await safeFetch(`${DB_URL}/game_status/is_open.json`);
-      if (res && res.ok) {
-        const val = await res.json();
-        if (val !== null) isGameGateOpen = val;
-      }
-    } catch(e) {}
-    updateAdminGateBtn();
-    if (gameState === 'WAITING' && isGameGateOpen) {
-      launchRun();
-    }
-  }
-
-  async function fetchScores() {
-    try {
-      const res = await safeFetch(`${DB_URL}/leaderboard.json`);
-      if (res && res.ok) {
-        const val = await res.json();
-        cloudScores = [];
-        if (val) {
-          Object.keys(val).forEach(k => cloudScores.push(val[k]));
-          cloudScores.sort((a,b) => b.score - a.score);
-        }
-      } else {
-        cloudScores = JSON.parse(localStorage.getItem('LOCAL_SCORES') || '[]');
-      }
-    } catch(e) {
-      cloudScores = JSON.parse(localStorage.getItem('LOCAL_SCORES') || '[]');
-    }
-    if (gameState === 'RESULT') renderLeaderboard();
-  }
-
-  async function cloudSaveScore(scoreObj) {
-    try {
-      safeFetch(`${DB_URL}/leaderboard.json`, {
-        method: 'POST',
-        body: JSON.stringify(scoreObj)
-      });
-    } catch(e) {}
-    let list = JSON.parse(localStorage.getItem('LOCAL_SCORES') || '[]');
-    list.push(scoreObj);
-    list.sort((a,b) => b.score - a.score);
-    localStorage.setItem('LOCAL_SCORES', JSON.stringify(list));
-    cloudScores = list;
-    renderLeaderboard();
-  }
-
-  async function cloudResetScores() {
-    try {
-      safeFetch(`${DB_URL}/leaderboard.json`, { method: 'DELETE' });
-    } catch(e) {}
-    localStorage.removeItem('LOCAL_SCORES');
-    cloudScores = [];
-    renderLeaderboard();
-  }
-
-  async function cloudSetGate(open) {
-    isGameGateOpen = open;
-    try {
-      safeFetch(`${DB_URL}/game_status/is_open.json`, {
-        method: 'PUT',
-        body: JSON.stringify(open)
-      });
-    } catch(e) {}
-    updateAdminGateBtn();
-  }
-
-  setInterval(() => {
-    fetchGateStatus();
-    if (gameState === 'RESULT') fetchScores();
-  }, 4000);
-
-  // Web Audio
-  class SoundEngine {
-    constructor() { this.ctx = null; }
-    init() {
-      if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    playTone(freq, type, duration, delay = 0) {
-      if (!this.ctx) return;
-      setTimeout(() => {
-        try {
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = type;
-          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-          gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start();
-          osc.stop(this.ctx.currentTime + duration);
-        } catch (e) {}
-      }, delay * 1000);
-    }
-    jump() {
-      this.init();
-      if (!this.ctx) return;
-      try {
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(160, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(620, this.ctx.currentTime + 0.15);
-        gain.gain.setValueAtTime(0.14, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.15);
-      } catch(e){}
-    }
-    coin() {
-      this.init();
-      this.playTone(987.77, 'sine', 0.08, 0);
-      this.playTone(1318.51, 'sine', 0.25, 0.08);
-    }
-    stomp() { this.init(); this.playTone(180, 'square', 0.1); }
-    hurt() { this.init(); this.playTone(110, 'sawtooth', 0.25); }
-    victory() {
-      this.init();
-      [523, 659, 784, 1046].forEach((n, idx) => this.playTone(n, 'triangle', 0.2, idx * 0.12));
-    }
-  }
-  const sound = new SoundEngine();
+      background: rgba(20, 16,
