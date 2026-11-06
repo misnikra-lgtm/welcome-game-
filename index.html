@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>BUON COMPLEANNO, AMORE MIO!</title>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
   <style>
@@ -13,10 +13,8 @@
       user-select: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
-      touch-action: pan-x pan-y;
     }
     html, body {
-      position: fixed;
       width: 100%;
       height: 100%;
       height: 100dvh;
@@ -26,8 +24,7 @@
       touch-action: none;
     }
     #game-container {
-      position: absolute;
-      inset: 0;
+      position: relative;
       width: 100vw;
       height: 100vh;
       height: 100dvh;
@@ -189,7 +186,6 @@
       box-shadow: 0 10px 40px rgba(0,0,0,0.9);
       pointer-events: auto;
     }
-    /* Шрифт 17px предотвращает автозум в Safari */
     .input-field {
       width: 100%;
       padding: 13px 14px;
@@ -197,7 +193,7 @@
       border: 1.5px solid rgba(212, 175, 55, 0.6);
       background: rgba(10, 8, 14, 0.95);
       color: #fff;
-      font-size: 17px !important;
+      font-size: 16px;
       font-weight: 600;
       text-align: center;
       margin-bottom: 14px;
@@ -294,6 +290,7 @@
     </div>
   </div>
 
+  <!-- Стартовый экран -->
   <div class="screen-overlay" id="start-screen">
     <h1 class="gold-title">BUON COMPLEANNO,<br>AMORE MIO!</h1>
     <p class="subtitle">Quiz Show Italiano • Римские каникулы</p>
@@ -359,20 +356,6 @@
 </div>
 
 <script>
-// ПОЛНАЯ БЛОКИРОВКА СЛУЧАЙНОГО ЗУМА В SAFARI
-document.addEventListener('gesturestart', (e) => e.preventDefault());
-document.addEventListener('gesturechange', (e) => e.preventDefault());
-document.addEventListener('gestureend', (e) => e.preventDefault());
-
-let lastTouchEnd = 0;
-document.addEventListener('touchend', (event) => {
-  const now = Date.now();
-  if (now - lastTouchEnd <= 300) {
-    event.preventDefault();
-  }
-  lastTouchEnd = now;
-}, false);
-
 const DB_URL = "https://game-welcome-default-rtdb.firebaseio.com";
 let isGameGateOpen = true;
 let localScores = JSON.parse(localStorage.getItem('LOCAL_SCORES') || '[]');
@@ -456,6 +439,7 @@ class SoundEngine {
   }
   stomp() {
     this.init();
+    // Сочный звук раздавливания помидора
     this.playTone(280, 'sawtooth', 0.06);
     this.playTone(140, 'square', 0.12, 0.03);
   }
@@ -527,6 +511,7 @@ class Player {
     this.grounded = false;
     this.checkPlatformCollisions(platforms, false);
 
+    // Падение в открытую пропасть
     if (this.y > canvas.height + 40) {
       handlePitFall();
     }
@@ -653,6 +638,7 @@ class Block {
   }
 }
 
+// КЛАСС ВРАГА-ПОМИДОРА С ВОЗМОЖНОСТЬЮ РАЗДАВЛИВАНИЯ
 class TomatoEnemy {
   constructor(x, y, range = 180, speed = 1.5) {
     this.x = x; this.y = y; this.startX = x;
@@ -675,6 +661,7 @@ class TomatoEnemy {
     ctx.translate(this.x - cameraX, this.y);
 
     if (!this.alive) {
+      // Раздавленный, сплющенный помидор на земле
       ctx.fillStyle = '#b71c1c';
       ctx.beginPath();
       ctx.ellipse(this.w / 2, this.h - 4, 22, 6, 0, 0, Math.PI * 2);
@@ -682,16 +669,19 @@ class TomatoEnemy {
       ctx.fillStyle = '#2e7d32';
       ctx.fillRect(this.w / 2 - 4, this.h - 9, 8, 4);
     } else {
+      // Сочный круглый итальянский помидор
       ctx.fillStyle = '#e53935';
       ctx.beginPath();
       ctx.arc(this.w / 2, this.h / 2 + 2, 15, 0, Math.PI * 2);
       ctx.fill();
 
+      // Блик на помидоре
       ctx.fillStyle = '#ff8a80';
       ctx.beginPath();
       ctx.arc(this.w / 2 - 5, this.h / 2 - 3, 4, 0, Math.PI * 2);
       ctx.fill();
 
+      // Зелёный хвостик
       ctx.fillStyle = '#2e7d32';
       ctx.beginPath();
       ctx.moveTo(this.w / 2, this.h / 2 - 14);
@@ -700,6 +690,7 @@ class TomatoEnemy {
       ctx.closePath();
       ctx.fill();
 
+      // Забавные сердитые глазки
       ctx.fillStyle = '#fff';
       const lookOffset = this.speed > 0 ? 3 : -3;
       ctx.fillRect(this.w / 2 - 7 + lookOffset, this.h / 2 - 1, 5, 6);
@@ -759,6 +750,7 @@ function createCoinParticle(x, y) {
   }
 }
 
+// Эффект брызг при раздавливании помидора
 function createTomatoSplash(x, y) {
   const colors = ['#e53935', '#b71c1c', '#ff5252', '#43a047'];
   for (let i = 0; i < 14; i++) {
@@ -930,6 +922,7 @@ function gameLoop() {
       }
     });
 
+    // ПРОВЕРКА СТОЛКНОВЕНИЯ С ПОМИДОРАМИ: ДАВИТЬ СВЕРХУ ИЛИ ПОЛУЧАТЬ УРОН СБОКУ
     enemies.forEach(e => {
       e.update();
       if (e.alive) {
@@ -937,16 +930,18 @@ function gameLoop() {
         const overlapY = player.y < e.y + e.h && player.y + player.h > e.y;
 
         if (overlapX && overlapY) {
+          // Если Всеволод приземляется сверху на помидор
           const isStomp = player.vy > 0 && (player.y + player.h - player.vy) <= (e.y + 16);
 
           if (isStomp) {
             e.alive = false;
-            player.vy = -10.5;
+            player.vy = -10.5; // Отскок вверх от раздавленного помидора
             sound.stomp();
             createTomatoSplash(e.x + e.w / 2, e.y + e.h / 2);
-            coins += 2;
+            coins += 2; // Бонус 2 монеты
             enemiesDefeated++;
           } else {
+            // Столкновение сбоку
             if (player.invulnerableTimer === 0) {
               handlePlayerHit();
             }
@@ -1014,10 +1009,6 @@ function updateLivesHUD() {
 }
 
 function startGame() {
-  // Сброс скролла и фокуса перед запуском
-  window.scrollTo(0, 0);
-  document.getElementById('player-name-input').blur();
-
   sound.init();
   const nameInput = document.getElementById('player-name-input').value.trim();
   playerName = nameInput || 'Гость';
