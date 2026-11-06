@@ -220,4 +220,866 @@
       right: 12px;
       font-size: 20px;
       background: rgba(20, 16, 26, 0.85);
-      border:
+      border: 1px solid rgba(212, 175, 55, 0.5);
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 120;
+      color: #d4af37;
+    }
+
+    .leader-table {
+      width: 100%;
+      max-height: 180px;
+      overflow-y: auto;
+      margin: 10px 0 16px 0;
+      border-radius: 8px;
+      background: rgba(10, 8, 14, 0.8);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+    }
+    .leader-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 7px 10px;
+      font-size: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .leader-row.me {
+      background: rgba(212, 175, 55, 0.3);
+      font-weight: 700;
+      color: #ffd700;
+    }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+  <div class="admin-gear" id="admin-btn">⚙️</div>
+
+  <!-- HUD -->
+  <div id="hud" style="display: none;">
+    <div class="hud-card">
+      <span class="gold">🪙 <span id="coin-count">0</span></span>
+      <span>•</span>
+      <span class="hearts" id="hearts-display">❤️❤️❤️</span>
+    </div>
+    <div class="hud-card">
+      <span id="player-hud-name">Гость</span>
+      <span class="gold">⏱️ <span id="time-display">00:00</span></span>
+    </div>
+  </div>
+
+  <div id="progress-wrap" style="display: none;">
+    <div id="progress-bar"></div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <!-- Кнопки управления -->
+  <div id="touch-controls" style="display: none;">
+    <div class="d-pad">
+      <div class="t-btn" id="btn-left">◀</div>
+      <div class="t-btn" id="btn-right">▶</div>
+    </div>
+    <div class="action-buttons">
+      <div class="t-btn jump-btn" id="btn-jump">SALTO</div>
+    </div>
+  </div>
+
+  <!-- Стартовый экран -->
+  <div class="screen-overlay" id="start-screen">
+    <h1 class="gold-title">IL MIO GIOCO</h1>
+    <p class="subtitle">Quiz Show Italiano • Римские каникулы</p>
+    <div class="modal-box">
+      <p style="font-size: 13px; margin-bottom: 12px; color: #f0e6d2;">
+        Всеволод спешит через ночной Рим к Оксане!<br>Введите имя для участия в соревновании:
+      </p>
+      <input type="text" id="player-name-input" class="input-field" placeholder="Ваше имя / Никнейм" maxlength="15">
+      <button class="btn-main" id="start-game-btn">НАЧАТЬ ИГРУ</button>
+    </div>
+  </div>
+
+  <!-- Экран ожидания (Шлюз) -->
+  <div class="screen-overlay hidden" id="waiting-screen">
+    <h1 class="gold-title">IL MIO GIOCO</h1>
+    <p class="subtitle">Приготовьтесь к празднику!</p>
+    <div class="modal-box">
+      <div style="font-size: 38px; margin-bottom: 10px;">⏳</div>
+      <p style="font-size: 14px; color: #f0e6d2; margin-bottom: 8px;">
+        Ведущий ещё не открыл старт игры!
+      </p>
+      <p style="font-size: 11px; color: #a89f91;">
+        Оставайтесь на этой странице — игра запустится автоматически!
+      </p>
+    </div>
+  </div>
+
+  <!-- Экран результатов -->
+  <div class="screen-overlay hidden" id="result-screen">
+    <h1 class="gold-title" id="result-title">VITTORIA!</h1>
+    <p class="subtitle" id="result-subtitle">Оксана дождалась Всеволода!</p>
+    <div class="modal-box">
+      <p style="font-size: 14px; color: #ffd700; margin-bottom: 4px;" id="result-user-label"></p>
+      <p style="font-size: 26px; font-weight: 900; margin-bottom: 6px; color: #fff;">
+        <span id="final-score-val">0</span> <span style="font-size: 14px; color: #d4af37;">БАЛЛОВ</span>
+      </p>
+      <div style="font-size: 11px; color: #ccc; line-height: 1.5; margin-bottom: 10px;" id="result-stats-details"></div>
+      
+      <p style="font-size: 12px; font-weight: 700; color: #d4af37; margin-bottom: 6px;">ТАБЛИЦА РЕЙТИНГА ГОСТЕЙ</p>
+      <div class="leader-table" id="leaderboard-list"></div>
+
+      <button class="btn-main" id="retry-game-btn">ИГРАТЬ ЕЩЁ РАЗ</button>
+    </div>
+  </div>
+
+  <!-- Пульт ведущего -->
+  <div class="screen-overlay hidden" id="admin-modal">
+    <h1 class="gold-title" style="font-size: 22px;">ПУЛЬТ ВЕДУЩЕГО</h1>
+    <div class="modal-box" id="admin-auth-box">
+      <p style="font-size: 12px; margin-bottom: 10px;">Введите PIN ведущего:</p>
+      <input type="password" id="admin-pin-input" class="input-field" placeholder="PIN">
+      <button class="btn-main" id="admin-login-btn">ВОЙТИ</button>
+      <button class="btn-main" style="background: #333; color: #fff; margin-top: 8px;" id="admin-close-btn">ЗАКРЫТЬ</button>
+    </div>
+    <div class="modal-box hidden" id="admin-panel-box">
+      <p style="font-size: 13px; margin-bottom: 10px; color: #ffd700;">Управление праздником</p>
+      <button class="btn-main" id="admin-toggle-gate-btn" style="margin-bottom: 10px; font-size: 13px;">
+        СТАТУС ИГРЫ: <span id="gate-status">ОТКРЫТА</span>
+      </button>
+      <button class="btn-main" id="admin-reset-scores-btn" style="background: #ff3366; color: #fff; font-size: 13px; margin-bottom: 10px;">
+        🗑️ СБРОСИТЬ ВСЕ РЕКОРДЫ ГОСТЕЙ
+      </button>
+      <button class="btn-main" style="background: #333; color: #fff; font-size: 13px;" id="admin-panel-close-btn">ВЫЙТИ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ==================== ОБЛАЧНАЯ СИНХРОНИЗАЦИЯ FIREBASE REST ==================== */
+const DB_URL = "https://game-welcome-default-rtdb.firebaseio.com";
+let isGameGateOpen = true;
+let cloudScores = [];
+
+async function fetchGateStatus() {
+  try {
+    const res = await fetch(`${DB_URL}/game_status/is_open.json`);
+    const val = await res.json();
+    if (val !== null) isGameGateOpen = val;
+  } catch(e) {}
+  updateAdminGateBtn();
+  if (gameState === 'WAITING' && isGameGateOpen) {
+    launchRun();
+  }
+}
+
+async function fetchScores() {
+  try {
+    const res = await fetch(`${DB_URL}/leaderboard.json`);
+    const val = await res.json();
+    cloudScores = [];
+    if (val) {
+      Object.keys(val).forEach(k => cloudScores.push(val[k]));
+      cloudScores.sort((a,b) => b.score - a.score);
+    }
+  } catch(e) {
+    cloudScores = JSON.parse(localStorage.getItem('LOCAL_SCORES') || '[]');
+  }
+  if (gameState === 'RESULT') renderLeaderboard();
+}
+
+async function cloudSaveScore(scoreObj) {
+  try {
+    await fetch(`${DB_URL}/leaderboard.json`, {
+      method: 'POST',
+      body: JSON.stringify(scoreObj)
+    });
+  } catch(e) {}
+  let list = JSON.parse(localStorage.getItem('LOCAL_SCORES') || '[]');
+  list.push(scoreObj);
+  list.sort((a,b) => b.score - a.score);
+  localStorage.setItem('LOCAL_SCORES', JSON.stringify(list));
+  await fetchScores();
+}
+
+async function cloudResetScores() {
+  try {
+    await fetch(`${DB_URL}/leaderboard.json`, { method: 'DELETE' });
+  } catch(e) {}
+  localStorage.removeItem('LOCAL_SCORES');
+  cloudScores = [];
+  renderLeaderboard();
+}
+
+async function cloudSetGate(open) {
+  isGameGateOpen = open;
+  try {
+    await fetch(`${DB_URL}/game_status/is_open.json`, {
+      method: 'PUT',
+      body: JSON.stringify(open)
+    });
+  } catch(e) {}
+  updateAdminGateBtn();
+}
+
+setInterval(() => {
+  fetchGateStatus();
+  if (gameState === 'RESULT') fetchScores();
+}, 3000);
+fetchGateStatus();
+fetchScores();
+
+/* ==================== ЗВУКИ WEB AUDIO ==================== */
+class SoundEngine {
+  constructor() { this.ctx = null; }
+  init() {
+    if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  playTone(freq, type, duration, delay = 0) {
+    if (!this.ctx) return;
+    setTimeout(() => {
+      try {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+      } catch (e) {}
+    }, delay * 1000);
+  }
+  jump() {
+    this.init();
+    if (!this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(160, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(620, this.ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.14, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.15);
+    } catch(e){}
+  }
+  coin() {
+    this.init();
+    this.playTone(987.77, 'sine', 0.08, 0);
+    this.playTone(1318.51, 'sine', 0.25, 0.08);
+  }
+  stomp() { this.init(); this.playTone(180, 'square', 0.1); }
+  hurt() { this.init(); this.playTone(110, 'sawtooth', 0.25); }
+  victory() {
+    this.init();
+    [523, 659, 784, 1046].forEach((n, idx) => this.playTone(n, 'triangle', 0.2, idx * 0.12));
+  }
+}
+const sound = new SoundEngine();
+
+/* ==================== ИГРОВЫЕ СУБЪЕКТЫ ==================== */
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let levelWidth = 6800;
+let cameraX = 0;
+let gameState = 'START';
+let playerName = 'Гость';
+let lives = 3;
+let coins = 0;
+let enemiesDefeated = 0;
+let maxDistanceReached = 0;
+let startTime = 0;
+let gameTimer = 0;
+let groundY = 380;
+
+const keys = { left: false, right: false, jump: false };
+
+class Player {
+  constructor() {
+    this.w = 38; this.h = 62;
+    this.x = 80; this.y = 200;
+    this.vx = 0; this.vy = 0;
+    this.speed = 4.8;
+    this.jumpForce = -13.5;
+    this.grounded = false;
+    this.facing = 1;
+    this.animFrame = 0;
+    this.invulnerableTimer = 0; // Таймер неуязвимости и мигания
+  }
+  reset() {
+    this.x = 80; this.y = groundY - 100;
+    this.vx = 0; this.vy = 0;
+    this.grounded = false;
+    this.invulnerableTimer = 0;
+  }
+  update(platforms) {
+    if (this.invulnerableTimer > 0) this.invulnerableTimer--;
+
+    if (keys.left) { this.vx = -this.speed; this.facing = -1; }
+    else if (keys.right) { this.vx = this.speed; this.facing = 1; }
+    else { this.vx *= 0.75; if (Math.abs(this.vx) < 0.1) this.vx = 0; }
+
+    if (keys.jump && this.grounded) {
+      this.vy = this.jumpForce;
+      this.grounded = false;
+      sound.jump();
+    }
+
+    this.vy += 0.65;
+    if (this.vy > 14) this.vy = 14;
+
+    this.x += this.vx;
+    if (this.x > maxDistanceReached) maxDistanceReached = this.x;
+    this.checkPlatformCollisions(platforms, true);
+
+    this.y += this.vy;
+    this.grounded = false;
+    this.checkPlatformCollisions(platforms, false);
+
+    // Падение в пропасть: отнимаем жизнь, но возвращаем прямо на платформу рядом!
+    if (this.y > canvas.height + 60) {
+      handlePitFall();
+    }
+
+    if (Math.abs(this.vx) > 0.5) this.animFrame += 0.2; else this.animFrame = 0;
+  }
+  checkPlatformCollisions(platforms, horizontal) {
+    for (let p of platforms) {
+      if (this.x < p.x + p.w && this.x + this.w > p.x && this.y < p.y + p.h && this.y + this.h > p.y) {
+        if (horizontal) {
+          if (this.vx > 0) this.x = p.x - this.w;
+          else if (this.vx < 0) this.x = p.x + p.w;
+          this.vx = 0;
+        } else {
+          if (this.vy > 0) {
+            this.y = p.y - this.h;
+            this.vy = 0;
+            this.grounded = true;
+          } else if (this.vy < 0) {
+            this.y = p.y + p.h;
+            this.vy = 0;
+            if (p.isBlock) p.hit();
+          }
+        }
+      }
+    }
+  }
+  draw(ctx) {
+    // Эффект мерцания (мигания) при неуязвимости
+    if (this.invulnerableTimer > 0 && Math.floor(this.invulnerableTimer / 5) % 2 === 0) {
+      return; // Пропуск кадра для яркого эффекта вспышки
+    }
+
+    ctx.save();
+    ctx.translate(this.x - cameraX + this.w / 2, this.y + this.h / 2);
+    if (this.facing === -1) ctx.scale(-1, 1);
+
+    const legOffset = Math.sin(this.animFrame) * 6;
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-10, 8 + legOffset, 8, 22);
+    ctx.fillRect(2, 8 - legOffset, 8, 22);
+
+    ctx.fillStyle = '#1c1c1f';
+    ctx.fillRect(-13, -13, 26, 25);
+    ctx.fillStyle = '#f0f0f0';
+    ctx.beginPath();
+    ctx.moveTo(-5, -13); ctx.lineTo(5, -13); ctx.lineTo(0, -4); ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(-4, -11, 8, 4);
+
+    // Лицо Всеволода в смокинге
+    ctx.save();
+    ctx.translate(0, -22);
+    ctx.fillStyle = '#f2cbb1';
+    ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#8b6540';
+    ctx.beginPath(); ctx.arc(0, -4, 12, Math.PI, Math.PI * 2); ctx.lineTo(12, -1); ctx.lineTo(-12, -1); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#9b7147';
+    ctx.beginPath(); ctx.arc(0, 3, 11, 0.2, Math.PI - 0.2); ctx.fill();
+    ctx.fillStyle = '#222';
+    ctx.fillRect(2, -3, 3, 3); ctx.fillRect(7, -3, 3, 3);
+    ctx.restore();
+
+    ctx.restore();
+  }
+}
+
+class Block {
+  constructor(x, y, w, h, isBlock = false, hasCoin = false) {
+    this.x = x; this.y = y; this.w = w; this.h = h;
+    this.isBlock = isBlock; this.hasCoin = hasCoin; this.bumpY = 0;
+  }
+  hit() {
+    if (!this.hasCoin) return;
+    this.hasCoin = false;
+    this.bumpY = -10;
+    coins++;
+    sound.coin();
+    createCoinParticle(this.x + this.w / 2, this.y);
+  }
+  update() { if (this.bumpY < 0) this.bumpY += 2; }
+  draw(ctx) {
+    ctx.save();
+    ctx.translate(this.x - cameraX, this.y + this.bumpY);
+    if (this.isBlock) {
+      ctx.fillStyle = this.hasCoin ? '#e6b800' : '#6b583e';
+      ctx.fillRect(0, 0, this.w, this.h);
+      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2;
+      ctx.strokeRect(2, 2, this.w - 4, this.h - 4);
+      if (this.hasCoin) {
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 15px Cinzel';
+        ctx.fillText('?', this.w/2 - 5, this.h/2 + 5);
+      }
+    } else {
+      ctx.fillStyle = '#2a2228'; ctx.fillRect(0, 0, this.w, this.h);
+      ctx.fillStyle = '#3a323a'; ctx.fillRect(0, 0, this.w, 6);
+      ctx.strokeStyle = '#4a3d47'; ctx.strokeRect(0, 0, this.w, this.h);
+    }
+    ctx.restore();
+  }
+}
+
+class Enemy {
+  constructor(x, y, range = 180, speed = 1.6) {
+    this.x = x; this.y = y; this.startX = x;
+    this.range = range; this.speed = speed;
+    this.w = 34; this.h = 34; this.alive = true; this.deadTimer = 0;
+  }
+  update() {
+    if (!this.alive) { this.deadTimer++; return; }
+    this.x += this.speed;
+    if (Math.abs(this.x - this.startX) > this.range) this.speed *= -1;
+  }
+  draw(ctx) {
+    if (!this.alive && this.deadTimer > 20) return;
+    ctx.save();
+    ctx.translate(this.x - cameraX, this.y);
+    if (!this.alive) {
+      ctx.fillStyle = '#c0392b'; ctx.fillRect(0, 18, this.w, 14);
+    } else {
+      ctx.fillStyle = '#a93226';
+      ctx.beginPath(); ctx.arc(17, 17, 15, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f39c12'; ctx.fillRect(9, 2, 16, 6);
+      ctx.fillStyle = '#fff'; ctx.fillRect(this.speed > 0 ? 17 : 5, 13, 8, 6);
+      ctx.fillStyle = '#000'; ctx.fillRect(this.speed > 0 ? 21 : 7, 15, 4, 4);
+    }
+    ctx.restore();
+  }
+}
+
+class Princess {
+  constructor(x, y) { this.x = x; this.y = y; this.w = 46; this.h = 76; }
+  draw(ctx) {
+    ctx.save();
+    ctx.translate(this.x - cameraX, this.y);
+    ctx.fillStyle = '#d4af37'; ctx.fillRect(-20, this.h - 10, this.w + 40, 14);
+
+    ctx.fillStyle = '#121214';
+    ctx.beginPath();
+    ctx.moveTo(this.w/2 - 8, 24); ctx.lineTo(this.w/2 + 8, 24);
+    ctx.lineTo(this.w + 12, this.h - 10); ctx.lineTo(-12, this.h - 10);
+    ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = '#fff'; ctx.fillRect(this.w/2 - 2, 40, 4, 4);
+    ctx.fillStyle = '#f3cfb6'; ctx.fillRect(this.w/2 - 10, 22, 20, 8);
+
+    ctx.save();
+    ctx.translate(this.w/2, 11);
+    ctx.fillStyle = '#1c1618'; ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#f3cfb6'; ctx.beginPath(); ctx.arc(0, 2, 10, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#1c1618'; ctx.fillRect(-12, 0, 5, 18); ctx.fillRect(7, 0, 5, 18);
+    ctx.fillStyle = '#222'; ctx.fillRect(-4, 0, 3, 3); ctx.fillRect(2, 0, 3, 3);
+    ctx.fillStyle = '#b03a2e'; ctx.fillRect(-3, 5, 6, 2);
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath();
+    ctx.moveTo(-8, -8); ctx.lineTo(-4, -14); ctx.lineTo(0, -9); ctx.lineTo(4, -14); ctx.lineTo(8, -8);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+
+    const t = Date.now() * 0.003;
+    ctx.fillStyle = '#ff3366'; ctx.font = '16px Montserrat';
+    ctx.fillText('💖', this.w/2 - 10 + Math.sin(t)*12, -10 + Math.cos(t)*8);
+    ctx.restore();
+  }
+}
+
+let particles = [];
+function createCoinParticle(x, y) {
+  for (let i = 0; i < 8; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 6, vy: -Math.random() * 6 - 3,
+      alpha: 1, color: '#ffd700'
+    });
+  }
+}
+
+let player = new Player();
+let platforms = [];
+let enemies = [];
+let princess = null;
+
+function buildLevel() {
+  platforms = []; enemies = []; levelWidth = 6800;
+  groundY = Math.min(canvas.height - 180, 420);
+  if (groundY < 280) groundY = 280;
+
+  const ground = [
+    { x: 0, w: 900 }, { x: 1020, w: 900 }, { x: 2050, w: 1000 },
+    { x: 3180, w: 900 }, { x: 4200, w: 1100 }, { x: 5450, w: 1350 }
+  ];
+  ground.forEach(seg => platforms.push(new Block(seg.x, groundY, seg.w, canvas.height - groundY + 120)));
+
+  for (let x = 300; x < 6200; x += 180) {
+    if (Math.random() > 0.35) platforms.push(new Block(x, groundY - 120 - (x % 3) * 35, 40, 40, true, true));
+  }
+
+  platforms.push(new Block(920, groundY - 70, 80, 24));
+  platforms.push(new Block(1940, groundY - 80, 85, 24));
+  platforms.push(new Block(3070, groundY - 90, 85, 24));
+  platforms.push(new Block(4100, groundY - 80, 80, 24));
+  platforms.push(new Block(5320, groundY - 90, 95, 24));
+
+  for (let ex = 450; ex < 6100; ex += 380) {
+    enemies.push(new Enemy(ex, groundY - 34, 120, 1.4 + (ex / 6000)));
+  }
+  princess = new Princess(6500, groundY - 76);
+}
+
+function drawBackground(ctx) {
+  const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  grad.addColorStop(0, '#10071c'); grad.addColorStop(0.5, '#3b1630');
+  grad.addColorStop(0.8, '#783228'); grad.addColorStop(1, '#cb6b2d');
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const time = Date.now() * 0.001;
+  for (let i = 0; i < 4; i++) {
+    const angle = Math.sin(time + i * 1.5) * 0.35 - 0.2;
+    const px = ((i * 2200 - cameraX * 0.2) % (canvas.width + 400)) - 100;
+    const beam = ctx.createRadialGradient(px, canvas.height, 10, px + Math.sin(angle)*300, 0, 350);
+    beam.addColorStop(0, 'rgba(255, 215, 0, 0.24)');
+    beam.addColorStop(1, 'rgba(255, 215, 0, 0)');
+    ctx.fillStyle = beam;
+    ctx.beginPath();
+    ctx.moveTo(px - 20, canvas.height); ctx.lineTo(px + 20, canvas.height);
+    ctx.lineTo(px + Math.sin(angle) * 600 + 120, 0);
+    ctx.lineTo(px + Math.sin(angle) * 600 - 120, 0);
+    ctx.closePath(); ctx.fill();
+  }
+
+  const bgOff = -cameraX * 0.25;
+  const colY = groundY - 220;
+  for (let k = 0; k < 4; k++) {
+    const cx = bgOff + k * 1800 + 150;
+    ctx.fillStyle = '#221520'; ctx.fillRect(cx, colY, 360, 160);
+    ctx.fillStyle = '#f39c12';
+    for (let a = 0; a < 6; a++) {
+      ctx.fillRect(cx + 20 + a * 55, colY + 30, 32, 45);
+      ctx.fillRect(cx + 20 + a * 55, colY + 95, 32, 45);
+    }
+  }
+  for (let k = 0; k < 4; k++) {
+    const sx = bgOff + k * 1800 + 800;
+    ctx.fillStyle = '#1b1220';
+    ctx.beginPath(); ctx.arc(sx + 70, colY + 50, 65, Math.PI, 0); ctx.fill();
+    ctx.fillRect(sx + 15, colY + 50, 110, 110);
+    ctx.fillStyle = '#ffd700';
+    ctx.fillRect(sx + 68, colY - 30, 4, 18); ctx.fillRect(sx + 62, colY - 24, 16, 4);
+  }
+  for (let i = 0; i < 20; i++) {
+    const treeX = bgOff + i * 360;
+    ctx.fillStyle = '#0f1812';
+    ctx.beginPath(); ctx.ellipse(treeX, groundY - 90, 14, 55, 0, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+function gameLoop() {
+  if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    if (gameState === 'PLAYING') buildLevel();
+  }
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (gameState === 'PLAYING') {
+    gameTimer = Math.floor((Date.now() - startTime) / 1000);
+    const m = String(Math.floor(gameTimer / 60)).padStart(2, '0');
+    const s = String(gameTimer % 60).padStart(2, '0');
+    document.getElementById('time-display').textContent = `${m}:${s}`;
+    document.getElementById('coin-count').textContent = coins;
+
+    player.update(platforms);
+
+    const progressPct = Math.min(100, Math.round((player.x / 6500) * 100));
+    document.getElementById('progress-bar').style.width = `${progressPct}%`;
+
+    cameraX = player.x - canvas.width * 0.35;
+    if (cameraX < 0) cameraX = 0;
+    if (cameraX > levelWidth - canvas.width) cameraX = levelWidth - canvas.width;
+
+    // Проверка столкновения с папарацци
+    enemies.forEach(e => {
+      e.update();
+      if (e.alive && Math.abs(player.x - e.x) < 30 && Math.abs(player.y - e.y) < 34) {
+        if (player.vy > 0 && player.y + player.h - player.vy <= e.y + 14) {
+          e.alive = false; player.vy = -9; sound.stomp();
+          coins += 2;
+          enemiesDefeated++;
+        } else {
+          // Если Всеволод не находится в режиме временной неуязвимости
+          if (player.invulnerableTimer === 0) {
+            handlePlayerHit();
+          }
+        }
+      }
+    });
+
+    platforms.forEach(p => p.update());
+    if (Math.abs(player.x - princess.x) < 45) completeGame(true);
+  }
+
+  drawBackground(ctx);
+  platforms.forEach(p => p.draw(ctx));
+  enemies.forEach(e => e.draw(ctx));
+  if (princess) princess.draw(ctx);
+  player.draw(ctx);
+
+  particles.forEach((pt, idx) => {
+    pt.x += pt.vx; pt.y += pt.vy; pt.vy += 0.2; pt.alpha -= 0.03;
+    ctx.fillStyle = pt.color; ctx.globalAlpha = Math.max(0, pt.alpha);
+    ctx.fillRect(pt.x - cameraX, pt.y, 6, 6);
+    ctx.globalAlpha = 1;
+    if (pt.alpha <= 0) particles.splice(idx, 1);
+  });
+
+  requestAnimationFrame(gameLoop);
+}
+
+/* ==================== ПРОДОЛЖЕНИЕ ИГРЫ ПРИ УРОНЕ ==================== */
+function handlePlayerHit() {
+  lives--;
+  sound.hurt();
+  updateLivesHUD();
+
+  if (lives <= 0) {
+    completeGame(false);
+  } else {
+    // Включаем мерцание и неуязвимость на ~2 секунды (110 кадров)
+    player.invulnerableTimer = 110;
+    // Мягкий отскок вверх и вперед без сброса назад
+    player.vy = -6;
+    player.vx = player.facing * 3;
+  }
+}
+
+// При падении в яму
+function handlePitFall() {
+  lives--;
+  sound.hurt();
+  updateLivesHUD();
+
+  if (lives <= 0) {
+    completeGame(false);
+  } else {
+    // Находим безопасное место впереди для приземления
+    player.y = groundY - 90;
+    player.vy = -4;
+    player.x += 120; // телепортация через пропасть вперед
+    player.invulnerableTimer = 110;
+  }
+}
+
+function updateLivesHUD() {
+  let str = ''; for (let i = 0; i < lives; i++) str += '❤️';
+  document.getElementById('hearts-display').textContent = str || '💔';
+}
+
+function startGame() {
+  const nameInput = document.getElementById('player-name-input').value.trim();
+  playerName = nameInput || 'Гость';
+  document.getElementById('player-hud-name').textContent = playerName;
+
+  if (!isGameGateOpen) {
+    showScreen('waiting-screen');
+    gameState = 'WAITING';
+    return;
+  }
+  launchRun();
+}
+
+function launchRun() {
+  lives = 3;
+  coins = 0;
+  enemiesDefeated = 0;
+  maxDistanceReached = 80;
+  startTime = Date.now();
+  updateLivesHUD();
+  buildLevel();
+  player.reset();
+  document.getElementById('hud').style.display = 'flex';
+  document.getElementById('progress-wrap').style.display = 'block';
+  document.getElementById('touch-controls').style.display = 'flex';
+  hideAllScreens();
+  gameState = 'PLAYING';
+}
+
+function completeGame(isVictory) {
+  gameState = 'RESULT';
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('progress-wrap').style.display = 'none';
+  document.getElementById('touch-controls').style.display = 'none';
+
+  if (isVictory) sound.victory();
+
+  const distancePct = Math.min(100, Math.round((maxDistanceReached / 6500) * 100));
+  const distanceScore = distancePct * 30;
+  const coinScore = coins * 100;
+  const enemyScore = enemiesDefeated * 150;
+
+  let totalScore = 0;
+  let breakdownText = "";
+
+  if (isVictory) {
+    const timeBonus = Math.max(0, (120 - gameTimer) * 15);
+    const lifeBonus = lives * 500;
+    const winBonus = 1000;
+    totalScore = distanceScore + coinScore + enemyScore + timeBonus + lifeBonus + winBonus;
+
+    document.getElementById('result-title').textContent = "VITTORIA!";
+    document.getElementById('result-title').style.color = "#ffd700";
+    document.getElementById('result-subtitle').textContent = "Оксана спасена Всеволодом!";
+    document.getElementById('result-user-label').textContent = `${playerName}, великолепный результат!`;
+    breakdownText = `
+      Пройдено: <b>${distancePct}%</b> (+${distanceScore}) • Монеты: <b>${coins}</b> (+${coinScore})<br>
+      Папарацци: <b>${enemiesDefeated}</b> (+${enemyScore}) • Жизни: <b>${lives}</b> (+${lifeBonus})<br>
+      Бонус победы: <b>+${winBonus}</b> • Время: <b>${gameTimer}с</b> (+${timeBonus})
+    `;
+  } else {
+    const rawScore = distanceScore + coinScore + enemyScore;
+    totalScore = Math.round(rawScore * 0.75);
+
+    document.getElementById('result-title').textContent = "BUON TENTATIVO!";
+    document.getElementById('result-title').style.color = "#ff8c42";
+    document.getElementById('result-subtitle').textContent = "Папарацци перехватили Всеволода!";
+    document.getElementById('result-user-label').textContent = `${playerName}, очки сохранены в зачет!`;
+    breakdownText = `
+      Пройдено: <b>${distancePct}%</b> (+${distanceScore}) • Монеты: <b>${coins}</b> (+${coinScore})<br>
+      Папарацци: <b>${enemiesDefeated}</b> (+${enemyScore})<br>
+      <span style="color:#ffd700;">Коэффициент сохранения (75%): <b>${totalScore} б.</b></span>
+    `;
+  }
+
+  cloudSaveScore({
+    name: playerName,
+    score: totalScore,
+    progress: distancePct,
+    time: gameTimer,
+    isVictory: isVictory,
+    timestamp: Date.now()
+  });
+
+  document.getElementById('final-score-val').textContent = totalScore;
+  document.getElementById('result-stats-details').innerHTML = breakdownText;
+  renderLeaderboard();
+  showScreen('result-screen');
+}
+
+function renderLeaderboard() {
+  const box = document.getElementById('leaderboard-list');
+  box.innerHTML = '';
+  cloudScores.forEach((item, index) => {
+    const isMe = item.name === playerName;
+    const row = document.createElement('div');
+    row.className = `leader-row ${isMe ? 'me' : ''}`;
+    row.innerHTML = `
+      <span>${index + 1}. ${item.name} ${isMe ? ' (ВЫ)' : ''} ${item.isVictory ? '👑' : ''}</span>
+      <span>${item.score} б. (${item.progress || 0}%)</span>
+    `;
+    box.appendChild(row);
+  });
+}
+
+function showScreen(id) { hideAllScreens(); document.getElementById(id).classList.remove('hidden'); }
+function hideAllScreens() { document.querySelectorAll('.screen-overlay').forEach(el => el.classList.add('hidden')); }
+
+// Панель модератора
+document.getElementById('admin-btn').addEventListener('click', () => {
+  document.getElementById('admin-modal').classList.remove('hidden');
+  document.getElementById('admin-auth-box').classList.remove('hidden');
+  document.getElementById('admin-panel-box').classList.add('hidden');
+});
+document.getElementById('admin-close-btn').addEventListener('click', () => {
+  document.getElementById('admin-modal').classList.add('hidden');
+});
+document.getElementById('admin-login-btn').addEventListener('click', () => {
+  const pin = document.getElementById('admin-pin-input').value;
+  if (pin === '1234' || pin === '') {
+    document.getElementById('admin-auth-box').classList.add('hidden');
+    document.getElementById('admin-panel-box').classList.remove('hidden');
+    updateAdminGateBtn();
+  } else {
+    alert('Неверный PIN ведущего!');
+  }
+});
+function updateAdminGateBtn() {
+  document.getElementById('gate-status').textContent = isGameGateOpen ? 'ОТКРЫТА ДЛЯ ГОСТЕЙ' : 'ЗАКРЫТА (ОЖИДАНИЕ)';
+  document.getElementById('admin-toggle-gate-btn').style.background = isGameGateOpen ? '#27ae60' : '#e67e22';
+}
+document.getElementById('admin-toggle-gate-btn').addEventListener('click', () => {
+  cloudSetGate(!isGameGateOpen);
+});
+document.getElementById('admin-reset-scores-btn').addEventListener('click', () => {
+  if (confirm('Точно сбросить результаты всех гостей на сервере?')) {
+    cloudResetScores();
+    alert('Все рекорды вечера успешно очищены!');
+  }
+});
+document.getElementById('admin-panel-close-btn').addEventListener('click', () => {
+  document.getElementById('admin-modal').classList.add('hidden');
+});
+
+// Управление
+function bindTouch(id, keyName) {
+  const el = document.getElementById(id);
+  const start = (e) => { e.preventDefault(); keys[keyName] = true; el.classList.add('active'); sound.init(); };
+  const end = (e) => { e.preventDefault(); keys[keyName] = false; el.classList.remove('active'); };
+  el.addEventListener('touchstart', start, { passive: false });
+  el.addEventListener('touchend', end, { passive: false });
+  el.addEventListener('mousedown', start);
+  el.addEventListener('mouseup', end);
+  el.addEventListener('mouseleave', end);
+}
+bindTouch('btn-left', 'left');
+bindTouch('btn-right', 'right');
+bindTouch('btn-jump', 'jump');
+
+window.addEventListener('keydown', e => {
+  sound.init();
+  if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+  if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+  if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') keys.jump = true;
+});
+window.addEventListener('keyup', e => {
+  if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+  if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+  if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') keys.jump = false;
+});
+
+document.getElementById('start-game-btn').addEventListener('click', startGame);
+document.getElementById('retry-game-btn').addEventListener('click', launchRun);
+
+gameLoop();
+</script>
+</body>
+</html>
