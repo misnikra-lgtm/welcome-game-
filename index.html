@@ -5,9 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>IL MIO GIOCO - Quiz Show Italiano</title>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -270,7 +267,7 @@
     </div>
   </div>
 
-  <!-- Экран ожидания (до запуска модератором) -->
+  <!-- Экран ожидания (до открытия ведущим) -->
   <div class="screen-overlay hidden" id="waiting-screen">
     <h1 class="gold-title">IL MIO GIOCO</h1>
     <p class="subtitle">Приготовьтесь к празднику!</p>
@@ -280,7 +277,7 @@
         Ведущий ещё не запустил игру на сегодня!
       </p>
       <p style="font-size: 12px; color: #a89f91;">
-        Как только ведущий откроет доступ, игра автоматически начнется!
+        Как только ведущий откроет доступ, игра сразу начнётся!
       </p>
     </div>
   </div>
@@ -338,74 +335,83 @@
 </div>
 
 <script>
-/* ==================== ПОДКЛЮЧЕНИЕ ОБЛАЧНОЙ БАЗЫ FIREBASE ==================== */
-const firebaseConfig = {
-  databaseURL: "https://game-welcome-default-rtdb.firebaseio.com",
-  projectId: "game-welcome"
-};
-
-let db = null;
-let isCloudActive = false;
-try {
-  firebase.initializeApp(firebaseConfig);
-  db = firebase.database();
-  isCloudActive = true;
-} catch (e) {
-  console.log("Firebase fallback to local");
-}
-
+/* ==================== ПРЯМАЯ СВЯЗЬ С FIREBASE (БЕЗ СБОЕВ) ==================== */
+const DB_URL = "https://game-welcome-default-rtdb.firebaseio.com";
 let isGameGateOpen = true;
 let cloudScores = [];
 
-if (isCloudActive) {
-  db.ref('game_status/is_open').on('value', snap => {
-    const val = snap.val();
-    isGameGateOpen = val !== null ? val : true;
-    updateAdminGateBtn();
-    if (gameState === 'WAITING' && isGameGateOpen) {
-      launchRun();
-    }
-  });
+// Проверка шлюза игры через REST API
+async function fetchGateStatus() {
+  try {
+    const res = await fetch(`${DB_URL}/game_status/is_open.json`);
+    const val = await res.json();
+    if (val !== null) isGameGateOpen = val;
+  } catch(e) {}
+  updateAdminGateBtn();
+  if (gameState === 'WAITING' && isGameGateOpen) {
+    launchRun();
+  }
+}
 
-  db.ref('leaderboard').on('value', snap => {
-    const val = snap.val();
+// Загрузка рекордов через REST API
+async function fetchScores() {
+  try {
+    const res = await fetch(`${DB_URL}/leaderboard.json`);
+    const val = await res.json();
     cloudScores = [];
     if (val) {
       Object.keys(val).forEach(k => cloudScores.push(val[k]));
       cloudScores.sort((a,b) => b.score - a.score);
     }
-    if (gameState === 'FINISH') renderLeaderboard();
-  });
+  } catch(e) {
+    // Резервное локальное хранение
+    cloudScores = JSON.parse(localStorage.getItem('LOCAL_SCORES') || '[]');
+  }
+  if (gameState === 'FINISH') renderLeaderboard();
 }
 
-function cloudSaveScore(scoreObj) {
-  if (isCloudActive) {
-    db.ref('leaderboard').push(scoreObj);
-  } else {
-    let list = JSON.parse(localStorage.getItem('LOCAL_SCORES') || '[]');
-    list.push(scoreObj);
-    list.sort((a,b) => b.score - a.score);
-    localStorage.setItem('LOCAL_SCORES', JSON.stringify(list));
-    cloudScores = list;
-  }
+async function cloudSaveScore(scoreObj) {
+  try {
+    await fetch(`${DB_URL}/leaderboard.json`, {
+      method: 'POST',
+      body: JSON.stringify(scoreObj)
+    });
+  } catch(e) {}
+  // Локальный дубликат
+  let list = JSON.parse(localStorage.getItem('LOCAL_SCORES') || '[]');
+  list.push(scoreObj);
+  list.sort((a,b) => b.score - a.score);
+  localStorage.setItem('LOCAL_SCORES', JSON.stringify(list));
+  await fetchScores();
 }
 
-function cloudResetScores() {
-  if (isCloudActive) {
-    db.ref('leaderboard').remove();
-  } else {
-    localStorage.removeItem('LOCAL_SCORES');
-    cloudScores = [];
-  }
+async function cloudResetScores() {
+  try {
+    await fetch(`${DB_URL}/leaderboard.json`, { method: 'DELETE' });
+  } catch(e) {}
+  localStorage.removeItem('LOCAL_SCORES');
+  cloudScores = [];
+  renderLeaderboard();
 }
 
-function cloudSetGate(open) {
-  if (isCloudActive) {
-    db.ref('game_status/is_open').set(open);
-  } else {
-    isGameGateOpen = open;
-  }
+async function cloudSetGate(open) {
+  isGameGateOpen = open;
+  try {
+    await fetch(`${DB_URL}/game_status/is_open.json`, {
+      method: 'PUT',
+      body: JSON.stringify(open)
+    });
+  } catch(e) {}
+  updateAdminGateBtn();
 }
+
+// Фоновый опрос базы каждые 3 секунды
+setInterval(() => {
+  fetchGateStatus();
+  if (gameState === 'FINISH') fetchScores();
+}, 3000);
+fetchGateStatus();
+fetchScores();
 
 /* ==================== ЗВУКОВОЙ ДВИЖОК ==================== */
 class SoundEngine {
@@ -643,7 +649,6 @@ class Princess {
     ctx.translate(this.x - cameraX, this.y);
     ctx.fillStyle = '#d4af37'; ctx.fillRect(-20, this.h - 10, this.w + 40, 14);
 
-    // Платье Оксаны
     ctx.fillStyle = '#121214';
     ctx.beginPath();
     ctx.moveTo(this.w/2 - 8, 26); ctx.lineTo(this.w/2 + 8, 26);
@@ -926,7 +931,6 @@ function updateAdminGateBtn() {
 }
 document.getElementById('admin-toggle-gate-btn').addEventListener('click', () => {
   cloudSetGate(!isGameGateOpen);
-  updateAdminGateBtn();
 });
 document.getElementById('admin-reset-scores-btn').addEventListener('click', () => {
   if (confirm('Точно сбросить результаты всех гостей на сервере?')) {
@@ -938,7 +942,7 @@ document.getElementById('admin-panel-close-btn').addEventListener('click', () =>
   document.getElementById('admin-modal').classList.add('hidden');
 });
 
-// Управление
+// Сенсорное управление
 function bindTouch(id, keyName) {
   const el = document.getElementById(id);
   const start = (e) => { e.preventDefault(); keys[keyName] = true; el.classList.add('active'); sound.init(); };
