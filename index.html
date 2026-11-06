@@ -384,7 +384,7 @@ function resetAllScores() {
   } catch(e) {}
 }
 
-// Защищенный аудио-движок
+// Защищенный звуковой движок
 class SoundEngine {
   constructor() { this.ctx = null; }
   init() {
@@ -446,7 +446,7 @@ class SoundEngine {
 }
 const sound = new SoundEngine();
 
-// Инициализация Canvas
+// Игровые параметры
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
@@ -506,6 +506,7 @@ class Player {
     this.grounded = false;
     this.checkPlatformCollisions(platforms, false);
 
+    // Падение в открытую пропасть
     if (this.y > canvas.height + 40) {
       handlePitFall();
     }
@@ -713,37 +714,61 @@ let enemies = [];
 let floatingCoins = [];
 let princess = null;
 
+// ПОСТРОЕНИЕ УРОВНЯ С НАСТОЯЩИМИ ОТКРЫТЫМИ ПРОПАСТЯМИ
 function buildLevel() {
   platforms = []; enemies = []; floatingCoins = []; levelWidth = 6800;
   groundY = Math.max(260, Math.floor(canvas.height * 0.65));
 
-  const ground = [
-    { x: 0, w: 900 }, { x: 1020, w: 900 }, { x: 2050, w: 1000 },
-    { x: 3180, w: 900 }, { x: 4200, w: 1100 }, { x: 5450, w: 1350 }
+  // Островки земли с явными широкими пропастями между ними
+  const groundIslands = [
+    { x: 0, w: 850 },       // Пропасть 850..1050 (ширина 200)
+    { x: 1050, w: 900 },    // Пропасть 1950..2150 (ширина 200)
+    { x: 2150, w: 950 },    // Пропасть 3100..3300 (ширина 200)
+    { x: 3300, w: 950 },    // Пропасть 4250..4450 (ширина 200)
+    { x: 4450, w: 950 },    // Пропасть 5400..5600 (ширина 200)
+    { x: 5600, w: 1200 }    // Финишная земля с Оксаной
   ];
-  ground.forEach(seg => platforms.push(new Block(seg.x, groundY, seg.w, canvas.height - groundY + 120)));
+  groundIslands.forEach(seg => {
+    platforms.push(new Block(seg.x, groundY, seg.w, canvas.height - groundY + 120));
+  });
 
-  for (let x = 300; x < 6200; x += 180) {
-    if (Math.random() > 0.35) platforms.push(new Block(x, groundY - 110 - (x % 3) * 30, 40, 40, true, true));
+  // Парящие плиты точно посередине пропастей для преодоления прыжком
+  platforms.push(new Block(925, groundY - 60, 95, 24));
+  platforms.push(new Block(2025, groundY - 65, 95, 24));
+  platforms.push(new Block(3175, groundY - 70, 95, 24));
+  platforms.push(new Block(4325, groundY - 65, 95, 24));
+  platforms.push(new Block(5475, groundY - 70, 95, 24));
+
+  // Дополнительные парящие блоки с вопросиками «?» над землёй
+  for (let x = 300; x < 6200; x += 220) {
+    // Не спавним блоки в воздухе прямо над пустотой
+    const inPit = (x > 800 && x < 1100) || (x > 1900 && x < 2200) || 
+                  (x > 3050 && x < 3350) || (x > 4200 && x < 4500) || 
+                  (x > 5350 && x < 5650);
+    if (!inPit && Math.random() > 0.35) {
+      platforms.push(new Block(x, groundY - 110 - (x % 3) * 30, 40, 40, true, true));
+    }
   }
 
-  platforms.push(new Block(920, groundY - 60, 80, 24));
-  platforms.push(new Block(1940, groundY - 70, 85, 24));
-  platforms.push(new Block(3070, groundY - 75, 85, 24));
-  platforms.push(new Block(4100, groundY - 65, 80, 24));
-  platforms.push(new Block(5320, groundY - 75, 95, 24));
-
+  // Россыпь золотых монет над землей
   for (let cx = 150; cx < 6300; cx += 85) {
-    floatingCoins.push(new FloatingCoin(cx, groundY - 45));
+    const inPit = (cx > 820 && cx < 1080) || (cx > 1920 && cx < 2180) || 
+                  (cx > 3070 && cx < 3330) || (cx > 4220 && cx < 4480) || 
+                  (cx > 5370 && cx < 5630);
+    if (!inPit) {
+      floatingCoins.push(new FloatingCoin(cx, groundY - 45));
+    }
   }
-  const arcs = [
-    { startX: 890, endX: 1030, peakY: groundY - 120 },
-    { startX: 1910, endX: 2060, peakY: groundY - 130 },
-    { startX: 3040, endX: 3190, peakY: groundY - 135 },
-    { startX: 4070, endX: 4220, peakY: groundY - 130 },
-    { startX: 5290, endX: 5460, peakY: groundY - 140 }
+
+  // Дуги парящих монет над пропастями
+  const pitArcs = [
+    { startX: 840, endX: 1060, peakY: groundY - 115 },
+    { startX: 1940, endX: 2160, peakY: groundY - 120 },
+    { startX: 3090, endX: 3310, peakY: groundY - 125 },
+    { startX: 4240, endX: 4460, peakY: groundY - 120 },
+    { startX: 5390, endX: 5610, peakY: groundY - 125 }
   ];
-  arcs.forEach(arc => {
+  pitArcs.forEach(arc => {
     for (let i = 0; i < 5; i++) {
       const t = i / 4;
       const x = arc.startX + (arc.endX - arc.startX) * t;
@@ -752,9 +777,12 @@ function buildLevel() {
     }
   });
 
-  for (let ex = 450; ex < 6100; ex += 380) {
-    enemies.push(new Enemy(ex, groundY - 34, 120, 1.4 + (ex / 6000)));
-  }
+  // Папарацци гуляют только по островкам земли
+  const enemySpots = [350, 600, 1250, 1600, 2350, 2750, 3500, 3950, 4650, 5100, 5800, 6150];
+  enemySpots.forEach(ex => {
+    enemies.push(new Enemy(ex, groundY - 34, 110, 1.4 + (ex / 6000)));
+  });
+
   princess = new Princess(6500, groundY - 76);
 }
 
@@ -894,14 +922,24 @@ function handlePlayerHit() {
   }
 }
 
+// При падении в пропасть: переносим на ближайшую платформу впереди без полного сброса
 function handlePitFall() {
   lives--; sound.hurt(); updateLivesHUD();
   if (lives <= 0) {
     completeGame(false);
   } else {
-    player.y = groundY - 80;
+    // Ищем ближайшую платформу впереди игрока
+    let targetX = player.x + 160;
+    for (let p of platforms) {
+      if (p.x > player.x && !p.isBlock) {
+        targetX = p.x + 30;
+        break;
+      }
+    }
+    player.x = targetX;
+    player.y = groundY - 90;
     player.vy = -4;
-    player.x += 120;
+    player.vx = 0;
     player.invulnerableTimer = 110;
   }
 }
@@ -1083,7 +1121,7 @@ window.addEventListener('keyup', e => {
 document.getElementById('start-game-btn').onclick = startGame;
 document.getElementById('retry-game-btn').onclick = launchRun;
 
-// Старт цикла
+// Запуск игрового цикла
 gameLoop();
 </script>
 </body>
