@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
   <title>BUON COMPLEANNO, AMORE MIO!</title>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
   <style>
@@ -13,8 +13,10 @@
       user-select: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
+      touch-action: pan-x pan-y;
     }
     html, body {
+      position: fixed;
       width: 100%;
       height: 100%;
       height: 100dvh;
@@ -24,7 +26,8 @@
       touch-action: none;
     }
     #game-container {
-      position: relative;
+      position: absolute;
+      inset: 0;
       width: 100vw;
       height: 100vh;
       height: 100dvh;
@@ -172,127 +175,4 @@
     }
     .subtitle {
       font-style: italic;
-      color: #e2d9c8;
-      font-size: clamp(12px, 3.2vw, 15px);
-      margin-bottom: 16px;
-      letter-spacing: 1px;
-    }
-    .modal-box {
-      width: min(92%, 400px);
-      background: rgba(24, 18, 32, 0.92);
-      border: 2px solid #d4af37;
-      border-radius: 16px;
-      padding: 18px 16px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.9);
-      pointer-events: auto;
-    }
-    .input-field {
-      width: 100%;
-      padding: 13px 14px;
-      border-radius: 12px;
-      border: 1.5px solid rgba(212, 175, 55, 0.6);
-      background: rgba(10, 8, 14, 0.95);
-      color: #fff;
-      font-size: 16px;
-      font-weight: 600;
-      text-align: center;
-      margin-bottom: 14px;
-      outline: none;
-      -webkit-appearance: none;
-    }
-    .btn-main {
-      width: 100%;
-      padding: 15px 18px;
-      border-radius: 12px;
-      border: none;
-      background: linear-gradient(135deg, #ffd700 0%, #d4af37 50%, #996515 100%);
-      color: #120d03;
-      font-family: 'Cinzel', serif;
-      font-size: 16px;
-      font-weight: 900;
-      letter-spacing: 1px;
-      cursor: pointer;
-      touch-action: manipulation;
-    }
-    .btn-main:active { transform: scale(0.97); }
-
-    .admin-gear {
-      position: absolute;
-      top: max(10px, env(safe-area-inset-top, 10px));
-      right: 12px;
-      font-size: 20px;
-      background: rgba(20, 16, 26, 0.85);
-      border: 1px solid rgba(212, 175, 55, 0.5);
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      z-index: 120;
-      color: #d4af37;
-    }
-
-    .leader-table {
-      width: 100%;
-      max-height: 180px;
-      overflow-y: auto;
-      margin: 10px 0 16px 0;
-      border-radius: 8px;
-      background: rgba(10, 8, 14, 0.8);
-      border: 1px solid rgba(212, 175, 55, 0.3);
-    }
-    .leader-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 7px 10px;
-      font-size: 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    }
-    .leader-row.me {
-      background: rgba(212, 175, 55, 0.3);
-      font-weight: 700;
-      color: #ffd700;
-    }
-  </style>
-</head>
-<body>
-
-<div id="game-container">
-  <div class="admin-gear" id="admin-btn">⚙️</div>
-
-  <div id="hud">
-    <div class="hud-card">
-      <span class="gold">🪙 <span id="coin-count">0</span></span>
-      <span>•</span>
-      <span class="hearts" id="hearts-display">❤️❤️❤️</span>
-    </div>
-    <div class="hud-card">
-      <span id="player-hud-name">Гость</span>
-      <span class="gold">⏱️ <span id="time-display">00:00</span></span>
-    </div>
-  </div>
-
-  <div id="progress-wrap">
-    <div id="progress-bar"></div>
-  </div>
-
-  <canvas id="canvas"></canvas>
-
-  <div id="touch-controls">
-    <div class="d-pad">
-      <div class="t-btn" id="btn-left">◀</div>
-      <div class="t-btn" id="btn-right">▶</div>
-    </div>
-    <div class="action-buttons">
-      <div class="t-btn jump-btn" id="btn-jump">SALTO</div>
-    </div>
-  </div>
-
-  <!-- Стартовый экран -->
-  <div class="screen-overlay" id="start-screen">
-    <h1 class="gold-title">BUON COMPLEANNO,<br>AMORE MIO!</h1>
-    <p class="subtitle">Quiz Show Italiano • Римские каникулы</p>
-    <div class="modal-box">
-      <p style="font-
+      color: #e2d9c
