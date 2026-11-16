@@ -540,3 +540,587 @@ class PixelCoin {
   update() { this.anim += 0.12; }
   draw(ctx) {
     if (this.collected) return;
+    const sx = Math.floor(this.x - cameraX);
+    const sy = Math.floor(this.y + Math.sin(this.anim) * 3);
+    const frame = Math.floor(this.anim) % 2;
+
+    if (frame === 0) {
+      pxRect(ctx, sx + 4, sy, 12, 20, '#ffcc00');
+      pxRect(ctx, sx, sy + 4, 20, 12, '#ffcc00');
+      pxRect(ctx, sx + 6, sy + 4, 8, 12, '#fff3b0');
+      pxRect(ctx, sx + 8, sy + 6, 4, 8, '#e09f3e');
+    } else {
+      pxRect(ctx, sx + 6, sy, 8, 20, '#ffcc00');
+      pxRect(ctx, sx + 8, sy + 4, 4, 12, '#fff3b0');
+    }
+  }
+}
+
+// 8-БИТНЫЕ БЛОКИ И ПОЛ ТЕРМИНАЛА
+class PixelBlock {
+  constructor(x, y, w, h, isBlock = false, hasCoin = false) {
+    this.x = x; this.y = y; this.w = w; this.h = h;
+    this.isBlock = isBlock; this.hasCoin = hasCoin; this.bumpY = 0;
+  }
+  hit() {
+    if (!this.hasCoin) return;
+    this.hasCoin = false;
+    this.bumpY = -8;
+    coins++;
+    sound.coin();
+    createPixelBurst(this.x + this.w / 2, this.y, '#ffcc00');
+  }
+  update() { if (this.bumpY < 0) this.bumpY += 2; }
+  draw(ctx) {
+    const sx = Math.floor(this.x - cameraX);
+    const sy = Math.floor(this.y + this.bumpY);
+
+    if (this.isBlock) {
+      // Пиксельный ящик багажа с "?"
+      pxRect(ctx, sx, sy, this.w, this.h, '#000');
+      pxRect(ctx, sx + 3, sy + 3, this.w - 6, this.h - 6, this.hasCoin ? '#ff9f1c' : '#5c677d');
+      pxRect(ctx, sx + 3, sy + 3, this.w - 6, 4, this.hasCoin ? '#ffbf69' : '#7d8597');
+      if (this.hasCoin) {
+        ctx.fillStyle = '#000';
+        ctx.font = '14px "Press Start 2P"';
+        ctx.fillText('?', sx + 12, sy + 27);
+      }
+    } else {
+      // Пол терминала / багажная лента
+      pxRect(ctx, sx, sy, this.w, this.h, '#2b2d42');
+      pxRect(ctx, sx, sy, this.w, 8, '#8d99ae');
+      pxRect(ctx, sx, sy + 8, this.w, 4, '#000');
+      // Желто-черная разметка безопасности по краям
+      for (let tx = sx; tx < sx + this.w; tx += 32) {
+        pxRect(ctx, tx, sy + 2, 16, 4, '#ffcc00');
+      }
+    }
+  }
+}
+
+// 8-БИТНЫЙ КАТЯЩИЙСЯ ЧЕМОДАН (ПРЕПЯТСТВИЕ)
+class SuitcaseEnemy {
+  constructor(x, y, range = 160, speed = 1.6) {
+    this.x = x; this.y = y; this.startX = x;
+    this.range = range; this.speed = speed;
+    this.w = 34; this.h = 30;
+    this.alive = true;
+    this.squishedTimer = 0;
+  }
+  update() {
+    if (!this.alive) {
+      this.squishedTimer++;
+      return;
+    }
+    this.x += this.speed;
+    if (Math.abs(this.x - this.startX) > this.range) this.speed *= -1;
+  }
+  draw(ctx) {
+    if (!this.alive && this.squishedTimer > 30) return;
+    const sx = Math.floor(this.x - cameraX);
+    const sy = Math.floor(this.y);
+
+    if (!this.alive) {
+      // Раздавленный плоский чемодан
+      pxRect(ctx, sx - 4, sy + 20, 42, 10, '#e63946');
+      pxRect(ctx, sx + 4, sy + 22, 26, 4, '#f1faee');
+    } else {
+      // Выдвижная ручка
+      pxRect(ctx, sx + 12, sy - 6, 10, 6, '#adb5bd');
+      pxRect(ctx, sx + 14, sy - 4, 6, 4, '#1d2d44');
+      // Корпус чемодана
+      pxRect(ctx, sx, sy, this.w, this.h - 4, '#000');
+      pxRect(ctx, sx + 2, sy + 2, this.w - 4, this.h - 8, '#d62828');
+      // Ремни и наклейки
+      pxRect(ctx, sx + 8, sy + 2, 4, this.h - 8, '#fcbf49');
+      pxRect(ctx, sx + 22, sy + 2, 4, this.h - 8, '#fcbf49');
+      // Колесики
+      pxRect(ctx, sx + 4, sy + this.h - 4, 6, 4, '#000');
+      pxRect(ctx, sx + 24, sy + this.h - 4, 6, 4, '#000');
+    }
+  }
+}
+
+// 8-БИТНАЯ СТОЙКА CHECK-IN И АГЕНТ РЕГИСТРАЦИИ В КОНЦЕ
+class CheckInDesk {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.w = 96;
+    this.h = 84;
+  }
+  draw(ctx) {
+    const sx = Math.floor(this.x - cameraX);
+    const sy = Math.floor(this.y);
+
+    // Табло CHECK-IN сверху на стойке
+    pxRect(ctx, sx + 10, sy - 42, 76, 26, '#000');
+    pxRect(ctx, sx + 13, sy - 39, 70, 20, '#00b4d8');
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '8px "Press Start 2P"';
+    ctx.fillText('CHECK-IN', sx + 16, sy - 25);
+    // Опора табло
+    pxRect(ctx, sx + 44, sy - 16, 8, 24, '#adb5bd');
+
+    // Сотрудник аэропорта (агент регистрации)
+    const ax = sx + 34;
+    const ay = sy + 6;
+    pxRect(ctx, ax + 6, ay, 16, 14, '#ffcdb2');     // лицо
+    pxRect(ctx, ax + 6, ay - 2, 16, 5, '#003049');  // пилотка / прическа
+    pxRect(ctx, ax + 8, ay + 5, 3, 3, '#000');      // глаз
+    pxRect(ctx, ax + 4, ay + 14, 20, 22, '#003049'); // форма сотрудника
+    pxRect(ctx, ax + 11, ay + 14, 6, 10, '#fff');    // белая рубашка
+    pxRect(ctx, ax + 13, ay + 16, 2, 8, '#e63946');  // галстук
+
+    // Стойка регистрации на переднем плане
+    pxRect(ctx, sx, sy + 34, this.w, 50, '#000');
+    pxRect(ctx, sx + 3, sy + 37, this.w - 6, 44, '#f8f9fa');
+    pxRect(ctx, sx + 3, sy + 37, this.w - 6, 10, '#0077b6');
+    pxRect(ctx, sx + 14, sy + 56, 68, 14, '#ffcc00');
+
+    // Монитор компьютера на стойке
+    pxRect(ctx, sx + 12, sy + 20, 18, 14, '#2b2d42');
+    pxRect(ctx, sx + 14, sy + 22, 14, 10, '#90e0ef');
+  }
+}
+
+let particles = [];
+function createPixelBurst(x, y, color) {
+  for (let i = 0; i < 10; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 7,
+      vy: -Math.random() * 6 - 2,
+      alpha: 1,
+      color: color
+    });
+  }
+}
+
+let passenger = new Passenger();
+let platforms = [];
+let enemies = [];
+let floatingCoins = [];
+let checkInDesk = null;
+
+function buildLevel() {
+  platforms = []; enemies = []; floatingCoins = []; levelWidth = 6800;
+  groundY = Math.max(260, Math.floor(canvas.height * 0.66));
+
+  // Секции пола аэропорта с открытыми провалами
+  const floorSections = [
+    { x: 0, w: 850 },
+    { x: 1050, w: 900 },
+    { x: 2150, w: 950 },
+    { x: 3300, w: 950 },
+    { x: 4450, w: 950 },
+    { x: 5600, w: 1200 }
+  ];
+  floorSections.forEach(seg => {
+    platforms.push(new PixelBlock(seg.x, groundY, seg.w, canvas.height - groundY + 120));
+  });
+
+  // Багажные тележки-платформы над провалами
+  platforms.push(new PixelBlock(925, groundY - 60, 95, 22));
+  platforms.push(new PixelBlock(2025, groundY - 65, 95, 22));
+  platforms.push(new PixelBlock(3175, groundY - 70, 95, 22));
+  platforms.push(new PixelBlock(4325, groundY - 65, 95, 22));
+  platforms.push(new PixelBlock(5475, groundY - 70, 95, 22));
+
+  // Бонусные ящики "?"
+  for (let x = 320; x < 6200; x += 240) {
+    const inPit = (x > 800 && x < 1100) || (x > 1900 && x < 2200) || 
+                  (x > 3050 && x < 3350) || (x > 4200 && x < 4500) || 
+                  (x > 5350 && x < 5650);
+    if (!inPit && Math.random() > 0.35) {
+      platforms.push(new PixelBlock(x, groundY - 110 - (x % 3) * 28, 38, 38, true, true));
+    }
+  }
+
+  // Золотые монеты по маршруту
+  for (let cx = 160; cx < 6300; cx += 90) {
+    const inPit = (cx > 820 && cx < 1080) || (cx > 1920 && cx < 2180) || 
+                  (cx > 3070 && cx < 3330) || (cx > 4220 && cx < 4480) || 
+                  (cx > 5370 && cx < 5630);
+    if (!inPit) {
+      floatingCoins.push(new PixelCoin(cx, groundY - 42));
+    }
+  }
+
+  // Дуги монет над провалами
+  const pitArcs = [
+    { startX: 840, endX: 1060, peakY: groundY - 115 },
+    { startX: 1940, endX: 2160, peakY: groundY - 120 },
+    { startX: 3090, endX: 3310, peakY: groundY - 125 },
+    { startX: 4240, endX: 4460, peakY: groundY - 120 },
+    { startX: 5390, endX: 5610, peakY: groundY - 125 }
+  ];
+  pitArcs.forEach(arc => {
+    for (let i = 0; i < 5; i++) {
+      const t = i / 4;
+      const x = arc.startX + (arc.endX - arc.startX) * t;
+      const y = arc.peakY + Math.sin(t * Math.PI) * -35;
+      floatingCoins.push(new PixelCoin(x, y));
+    }
+  });
+
+  // Катящиеся чемоданы-препятствия
+  const suitcaseSpots = [380, 620, 1280, 1620, 2380, 2780, 3520, 3960, 4680, 5120, 5820, 6160];
+  suitcaseSpots.forEach(ex => {
+    enemies.push(new SuitcaseEnemy(ex, groundY - 30, 100, 1.4 + (ex / 6500)));
+  });
+
+  // Финиш: стойка регистрации
+  checkInDesk = new CheckInDesk(6480, groundY - 84);
+}
+
+// 8-БИТНЫЙ ФОН ТЕРМИНАЛА АЭРОПОРТА
+function drawAirportBackground(ctx) {
+  // Небо за панорамными окнами
+  pxRect(ctx, 0, 0, canvas.width, groundY, '#3d5a80');
+
+  // Пиксельные облака за окном
+  const cloudOff = -cameraX * 0.12;
+  for (let i = 0; i < 12; i++) {
+    const cx = ((cloudOff + i * 320) % (canvas.width + 320)) - 80;
+    const cy = 60 + (i % 3) * 35;
+    pxRect(ctx, cx, cy, 64, 16, '#e0fbfc');
+    pxRect(ctx, cx + 12, cy - 10, 40, 10, '#e0fbfc');
+  }
+
+  // Пролетающий 8-битный самолёт на заднем плане
+  const planeX = ((Date.now() * 0.04 - cameraX * 0.15) % (canvas.width + 400)) - 120;
+  const planeY = 95;
+  pxRect(ctx, planeX, planeY, 56, 12, '#ffffff');
+  pxRect(ctx, planeX + 44, planeY + 4, 16, 8, '#ffffff');
+  pxRect(ctx, planeX + 4, planeY - 12, 10, 12, '#e63946'); // хвост
+  pxRect(ctx, planeX + 20, planeY + 6, 18, 6, '#98c1d9');  // крыло
+  pxRect(ctx, planeX + 12, planeY + 3, 28, 3, '#0077b6');  // иллюминаторы
+
+  // Каркас панорамных окон терминала
+  const winOff = -cameraX * 0.3;
+  for (let wx = winOff % 160 - 160; wx < canvas.width + 160; wx += 160) {
+    pxRect(ctx, wx, 0, 10, groundY, '#1d2d44');
+    pxRect(ctx, wx, 140, 160, 8, '#1d2d44');
+  }
+
+  // Табло вылетов (DEPARTURES) на стене терминала
+  for (let b = 0; b < 5; b++) {
+    const bx = winOff + 220 + b * 1400;
+    pxRect(ctx, bx, 35, 130, 56, '#000');
+    pxRect(ctx, bx + 4, bx + 39 - bx, 122, 48, '#0d1321');
+    ctx.fillStyle = '#ffcc00';
+    ctx.font = '8px "Press Start 2P"';
+    ctx.fillText('FLIGHT 777', bx + 12, 56);
+    ctx.fillStyle = '#00e676';
+    ctx.fillText('BOARDING >', bx + 12, 74);
+  }
+}
+
+function gameLoop() {
+  if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    buildLevel();
+  }
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (gameState === 'PLAYING') {
+    gameTimer = Math.floor((Date.now() - startTime) / 1000);
+    const m = String(Math.floor(gameTimer / 60)).padStart(2, '0');
+    const s = String(gameTimer % 60).padStart(2, '0');
+    document.getElementById('time-display').textContent = `${m}:${s}`;
+    document.getElementById('coin-count').textContent = coins;
+
+    passenger.update(platforms);
+
+    const progressPct = Math.min(100, Math.round((passenger.x / 6480) * 100));
+    document.getElementById('progress-bar').style.width = `${progressPct}%`;
+
+    cameraX = passenger.x - canvas.width * 0.32;
+    if (cameraX < 0) cameraX = 0;
+    if (cameraX > levelWidth - canvas.width) cameraX = levelWidth - canvas.width;
+
+    floatingCoins.forEach(coin => {
+      if (!coin.collected) {
+        coin.update();
+        if (
+          passenger.x < coin.x + coin.w &&
+          passenger.x + passenger.w > coin.x &&
+          passenger.y < coin.y + coin.h &&
+          passenger.y + passenger.h > coin.y
+        ) {
+          coin.collected = true;
+          coins++;
+          sound.coin();
+          createPixelBurst(coin.x + coin.w / 2, coin.y + coin.h / 2, '#ffcc00');
+        }
+      }
+    });
+
+    // Взаимодействие с чемоданами: прыжок сверху перепрыгивает/сплющивает, столкновение сбоку отнимает жизнь
+    enemies.forEach(e => {
+      e.update();
+      if (e.alive) {
+        const overlapX = passenger.x < e.x + e.w && passenger.x + passenger.w > e.x;
+        const overlapY = passenger.y < e.y + e.h && passenger.y + passenger.h > e.y;
+
+        if (overlapX && overlapY) {
+          const isStomp = passenger.vy > 0 && (passenger.y + passenger.h - passenger.vy) <= (e.y + 16);
+
+          if (isStomp) {
+            e.alive = false;
+            passenger.vy = -10.5;
+            sound.stomp();
+            createPixelBurst(e.x + e.w / 2, e.y + e.h / 2, '#e63946');
+            coins += 2;
+            obstaclesCleared++;
+          } else {
+            if (passenger.invulnerableTimer === 0) {
+              handlePlayerHit();
+            }
+          }
+        }
+      }
+    });
+
+    platforms.forEach(p => p.update());
+    if (Math.abs(passenger.x - checkInDesk.x) < 45) completeGame(true);
+  }
+
+  drawAirportBackground(ctx);
+  platforms.forEach(p => p.draw(ctx));
+  floatingCoins.forEach(c => c.draw(ctx));
+  enemies.forEach(e => e.draw(ctx));
+  if (checkInDesk) checkInDesk.draw(ctx);
+  passenger.draw(ctx);
+
+  particles.forEach((pt, idx) => {
+    pt.x += pt.vx; pt.y += pt.vy; pt.vy += 0.25; pt.alpha -= 0.04;
+    pxRect(ctx, pt.x - cameraX, pt.y, 6, 6, pt.color);
+    if (pt.alpha <= 0) particles.splice(idx, 1);
+  });
+
+  requestAnimationFrame(gameLoop);
+}
+
+function handlePlayerHit() {
+  lives--; sound.hurt(); updateLivesHUD();
+  if (lives <= 0) {
+    completeGame(false);
+  } else {
+    passenger.invulnerableTimer = 110;
+    passenger.vy = -6;
+  }
+}
+
+function handlePitFall() {
+  lives--; sound.hurt(); updateLivesHUD();
+  if (lives <= 0) {
+    completeGame(false);
+  } else {
+    let targetX = passenger.x + 160;
+    for (let p of platforms) {
+      if (p.x > passenger.x && !p.isBlock) {
+        targetX = p.x + 30;
+        break;
+      }
+    }
+    passenger.x = targetX;
+    passenger.y = groundY - 90;
+    passenger.vy = -4;
+    passenger.invulnerableTimer = 110;
+  }
+}
+
+function updateLivesHUD() {
+  let str = ''; for (let i = 0; i < lives; i++) str += '♥';
+  document.getElementById('hearts-display').textContent = str || 'X';
+}
+
+function startGame() {
+  window.scrollTo(0, 0);
+  const inputEl = document.getElementById('player-name-input');
+  if (inputEl) inputEl.blur();
+
+  sound.init();
+  const nameInput = inputEl ? inputEl.value.trim().toUpperCase() : '';
+  playerName = nameInput || 'PASSENGER';
+  document.getElementById('player-hud-name').textContent = playerName;
+
+  if (!isGameGateOpen) {
+    showScreen('waiting-screen');
+    gameState = 'WAITING';
+    return;
+  }
+  launchRun();
+}
+
+function launchRun() {
+  lives = 3; coins = 0; obstaclesCleared = 0; maxDistanceReached = 80;
+  startTime = Date.now();
+  updateLivesHUD();
+  buildLevel();
+  passenger.reset();
+  document.getElementById('hud').style.display = 'flex';
+  document.getElementById('progress-wrap').style.display = 'block';
+  document.getElementById('tap-hint').style.display = 'block';
+  hideAllScreens();
+  gameState = 'PLAYING';
+}
+
+function completeGame(isVictory) {
+  gameState = 'RESULT';
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('progress-wrap').style.display = 'none';
+  document.getElementById('tap-hint').style.display = 'none';
+
+  if (isVictory) sound.victory();
+
+  const distancePct = Math.min(100, Math.round((maxDistanceReached / 6480) * 100));
+  const distanceScore = distancePct * 30;
+  const coinScore = coins * 100;
+  const obstacleScore = obstaclesCleared * 150;
+
+  let totalScore = 0;
+  let breakdownText = "";
+
+  if (isVictory) {
+    const timeBonus = Math.max(0, (120 - gameTimer) * 15);
+    const lifeBonus = lives * 500;
+    const winBonus = 1000;
+    totalScore = distanceScore + coinScore + obstacleScore + timeBonus + lifeBonus + winBonus;
+
+    document.getElementById('result-title').textContent = "CHECK-IN OK!";
+    document.getElementById('result-title').style.color = "#00e676";
+    document.getElementById('result-subtitle').textContent = "ПОСАДОЧНЫЙ ТАЛОН ПОЛУЧЕН!";
+    document.getElementById('result-user-label').textContent = `${playerName}, ОТЛИЧНЫЙ РЕЙС!`;
+    breakdownText = `
+      ПУТЬ: ${distancePct}% (+${distanceScore}) | МИЛИ: ${coins} (+${coinScore})<br>
+      ЧЕМОДАНЫ: ${obstaclesCleared} (+${obstacleScore}) | ЖИЗНИ: ${lives} (+${lifeBonus})<br>
+      БОНУС ПОСАДКИ: +${winBonus} | ВРЕМЯ: ${gameTimer}С (+${timeBonus})
+    `;
+  } else {
+    const rawScore = distanceScore + coinScore + obstacleScore;
+    totalScore = Math.round(rawScore * 0.75);
+
+    document.getElementById('result-title').textContent = "MISSED FLIGHT!";
+    document.getElementById('result-title').style.color = "#ff3355";
+    document.getElementById('result-subtitle').textContent = "РЕГИСТРАЦИЯ ЗАКРЫЛАСЬ!";
+    document.getElementById('result-user-label').textContent = `${playerName}, ОЧКИ СОХРАНЕНЫ!`;
+    breakdownText = `
+      ПУТЬ: ${distancePct}% (+${distanceScore}) | МИЛИ: ${coins} (+${coinScore})<br>
+      ЧЕМОДАНЫ: ${obstaclesCleared} (+${obstacleScore})<br>
+      <span style="color:#ffcc00;">ЗАЧЕТ 75%: ${totalScore} PTS</span>
+    `;
+  }
+
+  saveScore({
+    name: playerName,
+    score: totalScore,
+    progress: distancePct,
+    time: gameTimer,
+    isVictory: isVictory,
+    timestamp: Date.now()
+  });
+
+  document.getElementById('final-score-val').textContent = totalScore;
+  document.getElementById('result-stats-details').innerHTML = breakdownText;
+  renderLeaderboard();
+  showScreen('result-screen');
+}
+
+function renderLeaderboard() {
+  const box = document.getElementById('leaderboard-list');
+  box.innerHTML = '';
+  localScores.forEach((item, index) => {
+    const isMe = item.name === playerName;
+    const row = document.createElement('div');
+    row.className = `leader-row ${isMe ? 'me' : ''}`;
+    row.innerHTML = `
+      <span>${index + 1}. ${item.name} ${item.isVictory ? '[OK]' : ''}</span>
+      <span>${item.score} (${item.progress || 0}%)</span>
+    `;
+    box.appendChild(row);
+  });
+}
+
+function showScreen(id) { hideAllScreens(); document.getElementById(id).classList.remove('hidden'); }
+function hideAllScreens() { document.querySelectorAll('.screen-overlay').forEach(el => el.classList.add('hidden')); }
+
+document.getElementById('admin-btn').onclick = (e) => {
+  e.stopPropagation();
+  document.getElementById('admin-modal').classList.remove('hidden');
+  document.getElementById('admin-auth-box').classList.remove('hidden');
+  document.getElementById('admin-panel-box').classList.add('hidden');
+};
+document.getElementById('admin-close-btn').onclick = (e) => {
+  e.stopPropagation();
+  document.getElementById('admin-modal').classList.add('hidden');
+};
+document.getElementById('admin-login-btn').onclick = (e) => {
+  e.stopPropagation();
+  const pin = document.getElementById('admin-pin-input').value;
+  if (pin === '1234' || pin === '') {
+    document.getElementById('admin-auth-box').classList.add('hidden');
+    document.getElementById('admin-panel-box').classList.remove('hidden');
+    updateAdminGateBtn();
+  } else {
+    alert('НЕВЕРНЫЙ PIN!');
+  }
+};
+function updateAdminGateBtn() {
+  document.getElementById('gate-status').textContent = isGameGateOpen ? 'ОТКРЫТ' : 'ЗАКРЫТ';
+  document.getElementById('admin-toggle-gate-btn').style.background = isGameGateOpen ? '#00e676' : '#ff9f1c';
+}
+document.getElementById('admin-toggle-gate-btn').onclick = (e) => {
+  e.stopPropagation();
+  isGameGateOpen = !isGameGateOpen;
+  updateAdminGateBtn();
+};
+document.getElementById('admin-reset-scores-btn').onclick = (e) => {
+  e.stopPropagation();
+  if (confirm('СБРОСИТЬ ВСЕ РЕЗУЛЬТАТЫ НА ТАБЛО?')) {
+    resetAllScores();
+    alert('ТАБЛО ОЧИЩЕНО!');
+  }
+};
+document.getElementById('admin-panel-close-btn').onclick = (e) => {
+  e.stopPropagation();
+  document.getElementById('admin-modal').classList.add('hidden');
+};
+
+// УПРАВЛЕНИЕ: ТАП В ЛЮБОЙ ТОЧКЕ ЭКРАНА
+const gameContainer = document.getElementById('game-container');
+
+function triggerJump(e) {
+  if (gameState === 'PLAYING') {
+    if (e.target && (e.target.closest('#hud') || e.target.closest('.admin-gear'))) {
+      return;
+    }
+    sound.init();
+    jumpRequested = true;
+  }
+}
+
+gameContainer.addEventListener('pointerdown', triggerJump);
+
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+    triggerJump(e);
+  }
+});
+
+document.getElementById('start-game-btn').onclick = (e) => {
+  e.stopPropagation();
+  startGame();
+};
+document.getElementById('retry-game-btn').onclick = (e) => {
+  e.stopPropagation();
+  launchRun();
+};
+
+gameLoop();
+</script>
+</body>
+</html>
