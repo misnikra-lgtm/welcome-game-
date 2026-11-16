@@ -132,15 +132,15 @@
     .subtitle {
       color: #748cab;
       font-size: clamp(9px, 2.6vw, 12px);
-      margin-bottom: 18px;
+      margin-bottom: 14px;
       line-height: 1.4;
     }
     .modal-box {
-      width: min(94%, 400px);
+      width: min(94%, 410px);
       background: #1d2d44;
       border: 4px solid #f0ebd8;
       box-shadow: 6px 6px 0px #000;
-      padding: 18px 14px;
+      padding: 16px 14px;
       pointer-events: auto;
     }
     .input-field {
@@ -191,24 +191,39 @@
       color: #ffcc00;
     }
 
+    .leader-banner {
+      background: #0d1321;
+      border: 2px solid #ffcc00;
+      padding: 8px;
+      margin-bottom: 10px;
+      font-size: 9px;
+      color: #ffcc00;
+      line-height: 1.5;
+    }
+
     .leader-table {
       width: 100%;
-      max-height: 160px;
+      max-height: 165px;
       overflow-y: auto;
-      margin: 10px 0 16px 0;
+      margin: 8px 0 14px 0;
       background: #0d1321;
       border: 3px solid #f0ebd8;
     }
     .leader-row {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       padding: 8px;
       font-size: 9px;
       border-bottom: 2px solid #1d2d44;
+      text-align: left;
+    }
+    .leader-row.top1 {
+      background: rgba(255, 204, 0, 0.18);
+      color: #ffcc00;
     }
     .leader-row.me {
-      background: #2b4162;
-      color: #ffcc00;
+      border-left: 4px solid #00e676;
     }
   </style>
 </head>
@@ -263,13 +278,15 @@
     <h1 class="pixel-title" id="result-title">CHECK-IN OK!</h1>
     <p class="subtitle" id="result-subtitle">ВЫ УСПЕЛИ НА РЕЙС!</p>
     <div class="modal-box">
-      <p style="font-size: 10px; color: #ffcc00; margin-bottom: 8px;" id="result-user-label"></p>
-      <p style="font-size: 18px; margin-bottom: 10px; color: #00e676;">
+      <p style="font-size: 10px; color: #ffcc00; margin-bottom: 6px;" id="result-user-label"></p>
+      <p style="font-size: 18px; margin-bottom: 8px; color: #00e676;">
         <span id="final-score-val">0</span> PTS
       </p>
-      <div style="font-size: 9px; color: #ccc; line-height: 1.6; margin-bottom: 12px;" id="result-stats-details"></div>
+      <div style="font-size: 8px; color: #ccc; line-height: 1.6; margin-bottom: 10px;" id="result-stats-details"></div>
       
-      <p style="font-size: 10px; color: #ffcc00; margin-bottom: 6px;">ТАБЛО РЕЙТИНГА ПАССАЖИРОВ</p>
+      <div class="leader-banner" id="current-leader-banner">ЛИДЕР РЕЙСА: ЗАГРУЗКА...</div>
+
+      <p style="font-size: 9px; color: #f0ebd8; margin-bottom: 4px;">ОБЩЕЕ ТАБЛО ПАССАЖИРОВ (LIVE)</p>
       <div class="leader-table" id="leaderboard-list"></div>
 
       <button class="btn-main" id="retry-game-btn" type="button">СЛЕДУЮЩИЙ РЕЙС</button>
@@ -290,7 +307,7 @@
         ГЕЙТ: <span id="gate-status">ОТКРЫТ</span>
       </button>
       <button class="btn-main" id="admin-reset-scores-btn" style="background: #ff3355; color: #fff; font-size: 10px; margin-bottom: 10px;" type="button">
-        СБРОСИТЬ ТАБЛО РЕКОРДОВ
+        СБРОСИТЬ ОБЩЕЕ ТАБЛО РЕКОРДОВ
       </button>
       <button class="btn-main" style="background: #748cab; font-size: 10px;" id="admin-panel-close-btn" type="button">ВЫЙТИ</button>
     </div>
@@ -300,31 +317,118 @@
 <script>
 const DB_URL = "https://game-welcome-default-rtdb.firebaseio.com";
 let isGameGateOpen = true;
-let localScores = JSON.parse(localStorage.getItem('AIRPORT_SCORES') || '[]');
+let globalScores = [];
+let myRunId = null;
 
-function saveScore(scoreObj) {
-  localScores.push(scoreObj);
-  localScores.sort((a,b) => b.score - a.score);
-  localStorage.setItem('AIRPORT_SCORES', JSON.stringify(localScores));
+// СИНХРОНИЗАЦИЯ ОБЩЕГО ТАБЛО С ОБЛАКОМ FIREBASE
+async function fetchGlobalScores() {
+  try {
+    const res = await fetch(`${DB_URL}/airport_leaderboard.json?t=${Date.now()}`);
+    if (res.ok) {
+      const data = await res.json();
+      const list = [];
+      if (data) {
+        Object.keys(data).forEach(key => {
+          if (data[key] && typeof data[key].score === 'number') {
+            list.push({ id: key, ...data[key] });
+          }
+        });
+      }
+      // Оставляем лучший результат каждого игрока (по имени)
+      const bestByPlayer = {};
+      list.forEach(item => {
+        const cleanName = (item.name || 'PASSENGER').trim().toUpperCase();
+        if (!bestByPlayer[cleanName] || item.score > bestByPlayer[cleanName].score) {
+          bestByPlayer[cleanName] = { ...item, name: cleanName };
+        }
+      });
+
+      globalScores = Object.values(bestByPlayer).sort((a, b) => b.score - a.score);
+      localStorage.setItem('AIRPORT_SCORES_CACHE', JSON.stringify(globalScores));
+      renderLeaderboard();
+      return;
+    }
+  } catch (e) {}
+
+  // Фолбэк на локальный кэш при отсутствии сети
+  const cached = JSON.parse(localStorage.getItem('AIRPORT_SCORES_CACHE') || '[]');
+  if (cached.length > 0 && globalScores.length === 0) {
+    globalScores = cached;
+  }
+  renderLeaderboard();
+}
+
+async function saveScore(scoreObj) {
+  myRunId = scoreObj.timestamp;
+  
+  // Оптимистично сразу обновляем локальный список до ответа сервера
+  const cleanName = scoreObj.name.trim().toUpperCase();
+  const existingIdx = globalScores.findIndex(s => s.name === cleanName);
+  if (existingIdx >= 0) {
+    if (scoreObj.score > globalScores[existingIdx].score) {
+      globalScores[existingIdx] = { ...scoreObj, name: cleanName };
+    }
+  } else {
+    globalScores.push({ ...scoreObj, name: cleanName });
+  }
+  globalScores.sort((a, b) => b.score - a.score);
   renderLeaderboard();
 
+  // Отправка в Firebase и повторное чтение актуального общего списка
   try {
-    fetch(`${DB_URL}/airport_leaderboard.json`, {
+    await fetch(`${DB_URL}/airport_leaderboard.json`, {
       method: 'POST',
-      body: JSON.stringify(scoreObj),
-      mode: 'no-cors'
-    }).catch(() => {});
-  } catch(e) {}
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...scoreObj, name: cleanName })
+    });
+    await fetchGlobalScores();
+  } catch (e) {}
 }
 
-function resetAllScores() {
-  localStorage.removeItem('AIRPORT_SCORES');
-  localScores = [];
+async function resetAllScores() {
+  localStorage.removeItem('AIRPORT_SCORES_CACHE');
+  globalScores = [];
   renderLeaderboard();
   try {
-    fetch(`${DB_URL}/airport_leaderboard.json`, { method: 'DELETE', mode: 'no-cors' }).catch(() => {});
-  } catch(e) {}
+    await fetch(`${DB_URL}/airport_leaderboard.json`, { method: 'DELETE' });
+  } catch (e) {}
 }
+
+async function syncGateStatus() {
+  try {
+    const res = await fetch(`${DB_URL}/airport_gate/is_open.json?t=${Date.now()}`);
+    if (res.ok) {
+      const val = await res.json();
+      if (typeof val === 'boolean') {
+        isGameGateOpen = val;
+        updateAdminGateBtn();
+        if (gameState === 'WAITING' && isGameGateOpen) {
+          launchRun();
+        }
+      }
+    }
+  } catch (e) {}
+}
+
+async function setGateStatus(open) {
+  isGameGateOpen = open;
+  updateAdminGateBtn();
+  try {
+    await fetch(`${DB_URL}/airport_gate/is_open.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(open)
+    });
+  } catch (e) {}
+}
+
+// Периодическое обновление общего табло и статуса гейта
+setInterval(() => {
+  syncGateStatus();
+  if (gameState === 'RESULT') {
+    fetchGlobalScores();
+  }
+}, 3000);
 
 // 8-битный звуковой синтезатор
 class RetroSound {
@@ -413,13 +517,11 @@ let gameTimer = 0;
 let groundY = 320;
 let jumpRequested = false;
 
-// Вспомогательная функция для чёткой пиксельной отрисовки
 function pxRect(ctx, x, y, w, h, color) {
   ctx.fillStyle = color;
   ctx.fillRect(Math.floor(x), Math.floor(y), Math.floor(w), Math.floor(h));
 }
 
-// 8-БИТНЫЙ ПАССАЖИР С ЧЕМОДАНОМ
 class Passenger {
   constructor() {
     this.w = 36;
@@ -494,25 +596,20 @@ class Passenger {
     const sy = Math.floor(this.y);
     const step = Math.floor(this.animFrame) % 2;
 
-    // Рюкзак за спиной
     pxRect(ctx, sx + 2, sy + 20, 8, 18, '#e63946');
     pxRect(ctx, sx + 4, sy + 22, 4, 6, '#f1faee');
 
-    // Голова и кепка туриста
-    pxRect(ctx, sx + 10, sy + 4, 16, 14, '#ffcdb2'); // лицо
-    pxRect(ctx, sx + 10, sy + 0, 18, 5, '#1d3557');  // кепка
-    pxRect(ctx, sx + 22, sy + 3, 10, 3, '#457b9d'); // козырек
-    pxRect(ctx, sx + 20, sy + 8, 4, 4, '#000');     // глаз
+    pxRect(ctx, sx + 10, sy + 4, 16, 14, '#ffcdb2');
+    pxRect(ctx, sx + 10, sy + 0, 18, 5, '#1d3557');
+    pxRect(ctx, sx + 22, sy + 3, 10, 3, '#457b9d');
+    pxRect(ctx, sx + 20, sy + 8, 4, 4, '#000');
 
-    // Куртка
     pxRect(ctx, sx + 10, sy + 18, 16, 20, '#3a86ff');
-    pxRect(ctx, sx + 16, sy + 18, 4, 20, '#ffbe0b'); // молния/шарф
+    pxRect(ctx, sx + 16, sy + 18, 4, 20, '#ffbe0b');
 
-    // Рука с билетом
     pxRect(ctx, sx + 22, sy + 22, 10, 5, '#ffcdb2');
-    pxRect(ctx, sx + 30, sy + 19, 6, 8, '#ffffff');  // посадочный талон
+    pxRect(ctx, sx + 30, sy + 19, 6, 8, '#ffffff');
 
-    // Ноги (8-битная анимация бега)
     if (!this.grounded) {
       pxRect(ctx, sx + 8, sy + 38, 8, 12, '#1d3557');
       pxRect(ctx, sx + 20, sy + 36, 8, 12, '#1d3557');
@@ -530,7 +627,6 @@ class Passenger {
   }
 }
 
-// 8-БИТНАЯ ЗОЛОТАЯ МОНЕТА / БОНУСНАЯ МИЛЯ
 class PixelCoin {
   constructor(x, y) {
     this.x = x; this.y = y; this.w = 20; this.h = 20;
@@ -556,7 +652,6 @@ class PixelCoin {
   }
 }
 
-// 8-БИТНЫЕ БЛОКИ И ПОЛ ТЕРМИНАЛА
 class PixelBlock {
   constructor(x, y, w, h, isBlock = false, hasCoin = false) {
     this.x = x; this.y = y; this.w = w; this.h = h;
@@ -576,7 +671,6 @@ class PixelBlock {
     const sy = Math.floor(this.y + this.bumpY);
 
     if (this.isBlock) {
-      // Пиксельный ящик багажа с "?"
       pxRect(ctx, sx, sy, this.w, this.h, '#000');
       pxRect(ctx, sx + 3, sy + 3, this.w - 6, this.h - 6, this.hasCoin ? '#ff9f1c' : '#5c677d');
       pxRect(ctx, sx + 3, sy + 3, this.w - 6, 4, this.hasCoin ? '#ffbf69' : '#7d8597');
@@ -586,11 +680,9 @@ class PixelBlock {
         ctx.fillText('?', sx + 12, sy + 27);
       }
     } else {
-      // Пол терминала / багажная лента
       pxRect(ctx, sx, sy, this.w, this.h, '#2b2d42');
       pxRect(ctx, sx, sy, this.w, 8, '#8d99ae');
       pxRect(ctx, sx, sy + 8, this.w, 4, '#000');
-      // Желто-черная разметка безопасности по краям
       for (let tx = sx; tx < sx + this.w; tx += 32) {
         pxRect(ctx, tx, sy + 2, 16, 4, '#ffcc00');
       }
@@ -598,7 +690,6 @@ class PixelBlock {
   }
 }
 
-// 8-БИТНЫЙ КАТЯЩИЙСЯ ЧЕМОДАН (ПРЕПЯТСТВИЕ)
 class SuitcaseEnemy {
   constructor(x, y, range = 160, speed = 1.6) {
     this.x = x; this.y = y; this.startX = x;
@@ -621,27 +712,21 @@ class SuitcaseEnemy {
     const sy = Math.floor(this.y);
 
     if (!this.alive) {
-      // Раздавленный плоский чемодан
       pxRect(ctx, sx - 4, sy + 20, 42, 10, '#e63946');
       pxRect(ctx, sx + 4, sy + 22, 26, 4, '#f1faee');
     } else {
-      // Выдвижная ручка
       pxRect(ctx, sx + 12, sy - 6, 10, 6, '#adb5bd');
       pxRect(ctx, sx + 14, sy - 4, 6, 4, '#1d2d44');
-      // Корпус чемодана
       pxRect(ctx, sx, sy, this.w, this.h - 4, '#000');
       pxRect(ctx, sx + 2, sy + 2, this.w - 4, this.h - 8, '#d62828');
-      // Ремни и наклейки
       pxRect(ctx, sx + 8, sy + 2, 4, this.h - 8, '#fcbf49');
       pxRect(ctx, sx + 22, sy + 2, 4, this.h - 8, '#fcbf49');
-      // Колесики
       pxRect(ctx, sx + 4, sy + this.h - 4, 6, 4, '#000');
       pxRect(ctx, sx + 24, sy + this.h - 4, 6, 4, '#000');
     }
   }
 }
 
-// 8-БИТНАЯ СТОЙКА CHECK-IN И АГЕНТ РЕГИСТРАЦИИ В КОНЦЕ
 class CheckInDesk {
   constructor(x, y) {
     this.x = x;
@@ -653,32 +738,27 @@ class CheckInDesk {
     const sx = Math.floor(this.x - cameraX);
     const sy = Math.floor(this.y);
 
-    // Табло CHECK-IN сверху на стойке
     pxRect(ctx, sx + 10, sy - 42, 76, 26, '#000');
     pxRect(ctx, sx + 13, sy - 39, 70, 20, '#00b4d8');
     ctx.fillStyle = '#ffffff';
     ctx.font = '8px "Press Start 2P"';
     ctx.fillText('CHECK-IN', sx + 16, sy - 25);
-    // Опора табло
     pxRect(ctx, sx + 44, sy - 16, 8, 24, '#adb5bd');
 
-    // Сотрудник аэропорта (агент регистрации)
     const ax = sx + 34;
     const ay = sy + 6;
-    pxRect(ctx, ax + 6, ay, 16, 14, '#ffcdb2');     // лицо
-    pxRect(ctx, ax + 6, ay - 2, 16, 5, '#003049');  // пилотка / прическа
-    pxRect(ctx, ax + 8, ay + 5, 3, 3, '#000');      // глаз
-    pxRect(ctx, ax + 4, ay + 14, 20, 22, '#003049'); // форма сотрудника
-    pxRect(ctx, ax + 11, ay + 14, 6, 10, '#fff');    // белая рубашка
-    pxRect(ctx, ax + 13, ay + 16, 2, 8, '#e63946');  // галстук
+    pxRect(ctx, ax + 6, ay, 16, 14, '#ffcdb2');
+    pxRect(ctx, ax + 6, ay - 2, 16, 5, '#003049');
+    pxRect(ctx, ax + 8, ay + 5, 3, 3, '#000');
+    pxRect(ctx, ax + 4, ay + 14, 20, 22, '#003049');
+    pxRect(ctx, ax + 11, ay + 14, 6, 10, '#fff');
+    pxRect(ctx, ax + 13, ay + 16, 2, 8, '#e63946');
 
-    // Стойка регистрации на переднем плане
     pxRect(ctx, sx, sy + 34, this.w, 50, '#000');
     pxRect(ctx, sx + 3, sy + 37, this.w - 6, 44, '#f8f9fa');
     pxRect(ctx, sx + 3, sy + 37, this.w - 6, 10, '#0077b6');
     pxRect(ctx, sx + 14, sy + 56, 68, 14, '#ffcc00');
 
-    // Монитор компьютера на стойке
     pxRect(ctx, sx + 12, sy + 20, 18, 14, '#2b2d42');
     pxRect(ctx, sx + 14, sy + 22, 14, 10, '#90e0ef');
   }
@@ -707,7 +787,6 @@ function buildLevel() {
   platforms = []; enemies = []; floatingCoins = []; levelWidth = 6800;
   groundY = Math.max(260, Math.floor(canvas.height * 0.66));
 
-  // Секции пола аэропорта с открытыми провалами
   const floorSections = [
     { x: 0, w: 850 },
     { x: 1050, w: 900 },
@@ -720,14 +799,12 @@ function buildLevel() {
     platforms.push(new PixelBlock(seg.x, groundY, seg.w, canvas.height - groundY + 120));
   });
 
-  // Багажные тележки-платформы над провалами
   platforms.push(new PixelBlock(925, groundY - 60, 95, 22));
   platforms.push(new PixelBlock(2025, groundY - 65, 95, 22));
   platforms.push(new PixelBlock(3175, groundY - 70, 95, 22));
   platforms.push(new PixelBlock(4325, groundY - 65, 95, 22));
   platforms.push(new PixelBlock(5475, groundY - 70, 95, 22));
 
-  // Бонусные ящики "?"
   for (let x = 320; x < 6200; x += 240) {
     const inPit = (x > 800 && x < 1100) || (x > 1900 && x < 2200) || 
                   (x > 3050 && x < 3350) || (x > 4200 && x < 4500) || 
@@ -737,7 +814,6 @@ function buildLevel() {
     }
   }
 
-  // Золотые монеты по маршруту
   for (let cx = 160; cx < 6300; cx += 90) {
     const inPit = (cx > 820 && cx < 1080) || (cx > 1920 && cx < 2180) || 
                   (cx > 3070 && cx < 3330) || (cx > 4220 && cx < 4480) || 
@@ -747,7 +823,6 @@ function buildLevel() {
     }
   }
 
-  // Дуги монет над провалами
   const pitArcs = [
     { startX: 840, endX: 1060, peakY: groundY - 115 },
     { startX: 1940, endX: 2160, peakY: groundY - 120 },
@@ -764,22 +839,17 @@ function buildLevel() {
     }
   });
 
-  // Катящиеся чемоданы-препятствия
   const suitcaseSpots = [380, 620, 1280, 1620, 2380, 2780, 3520, 3960, 4680, 5120, 5820, 6160];
   suitcaseSpots.forEach(ex => {
     enemies.push(new SuitcaseEnemy(ex, groundY - 30, 100, 1.4 + (ex / 6500)));
   });
 
-  // Финиш: стойка регистрации
   checkInDesk = new CheckInDesk(6480, groundY - 84);
 }
 
-// 8-БИТНЫЙ ФОН ТЕРМИНАЛА АЭРОПОРТА
 function drawAirportBackground(ctx) {
-  // Небо за панорамными окнами
   pxRect(ctx, 0, 0, canvas.width, groundY, '#3d5a80');
 
-  // Пиксельные облака за окном
   const cloudOff = -cameraX * 0.12;
   for (let i = 0; i < 12; i++) {
     const cx = ((cloudOff + i * 320) % (canvas.width + 320)) - 80;
@@ -788,27 +858,24 @@ function drawAirportBackground(ctx) {
     pxRect(ctx, cx + 12, cy - 10, 40, 10, '#e0fbfc');
   }
 
-  // Пролетающий 8-битный самолёт на заднем плане
   const planeX = ((Date.now() * 0.04 - cameraX * 0.15) % (canvas.width + 400)) - 120;
   const planeY = 95;
   pxRect(ctx, planeX, planeY, 56, 12, '#ffffff');
   pxRect(ctx, planeX + 44, planeY + 4, 16, 8, '#ffffff');
-  pxRect(ctx, planeX + 4, planeY - 12, 10, 12, '#e63946'); // хвост
-  pxRect(ctx, planeX + 20, planeY + 6, 18, 6, '#98c1d9');  // крыло
-  pxRect(ctx, planeX + 12, planeY + 3, 28, 3, '#0077b6');  // иллюминаторы
+  pxRect(ctx, planeX + 4, planeY - 12, 10, 12, '#e63946');
+  pxRect(ctx, planeX + 20, planeY + 6, 18, 6, '#98c1d9');
+  pxRect(ctx, planeX + 12, planeY + 3, 28, 3, '#0077b6');
 
-  // Каркас панорамных окон терминала
   const winOff = -cameraX * 0.3;
   for (let wx = winOff % 160 - 160; wx < canvas.width + 160; wx += 160) {
     pxRect(ctx, wx, 0, 10, groundY, '#1d2d44');
     pxRect(ctx, wx, 140, 160, 8, '#1d2d44');
   }
 
-  // Табло вылетов (DEPARTURES) на стене терминала
   for (let b = 0; b < 5; b++) {
     const bx = winOff + 220 + b * 1400;
     pxRect(ctx, bx, 35, 130, 56, '#000');
-    pxRect(ctx, bx + 4, bx + 39 - bx, 122, 48, '#0d1321');
+    pxRect(ctx, bx + 4, 39, 122, 48, '#0d1321');
     ctx.fillStyle = '#ffcc00';
     ctx.font = '8px "Press Start 2P"';
     ctx.fillText('FLIGHT 777', bx + 12, 56);
@@ -858,7 +925,6 @@ function gameLoop() {
       }
     });
 
-    // Взаимодействие с чемоданами: прыжок сверху перепрыгивает/сплющивает, столкновение сбоку отнимает жизнь
     enemies.forEach(e => {
       e.update();
       if (e.alive) {
@@ -1026,20 +1092,32 @@ function completeGame(isVictory) {
 
   document.getElementById('final-score-val').textContent = totalScore;
   document.getElementById('result-stats-details').innerHTML = breakdownText;
-  renderLeaderboard();
   showScreen('result-screen');
 }
 
 function renderLeaderboard() {
   const box = document.getElementById('leaderboard-list');
+  const leaderBanner = document.getElementById('current-leader-banner');
   box.innerHTML = '';
-  localScores.forEach((item, index) => {
+
+  if (globalScores.length === 0) {
+    leaderBanner.textContent = 'ЛИДЕР РЕЙСА: ПОКА НЕТ ДАННЫХ';
+    box.innerHTML = '<div class="leader-row"><span>ЗАГРУЗКА РЕЗУЛЬТАТОВ...</span></div>';
+    return;
+  }
+
+  const topPlayer = globalScores[0];
+  leaderBanner.innerHTML = `👑 ЛИДЕР РЕЙСА: <span style="color:#00e676;">${topPlayer.name}</span> — ${topPlayer.score} PTS`;
+
+  globalScores.forEach((item, index) => {
     const isMe = item.name === playerName;
+    const isTop = index === 0;
     const row = document.createElement('div');
-    row.className = `leader-row ${isMe ? 'me' : ''}`;
+    row.className = `leader-row ${isTop ? 'top1' : ''} ${isMe ? 'me' : ''}`;
+    const rankIcon = index === 0 ? '👑' : `${index + 1}.`;
     row.innerHTML = `
-      <span>${index + 1}. ${item.name} ${item.isVictory ? '[OK]' : ''}</span>
-      <span>${item.score} (${item.progress || 0}%)</span>
+      <span>${rankIcon} ${item.name} ${isMe ? '(ВЫ)' : ''}</span>
+      <span>${item.score} PTS</span>
     `;
     box.appendChild(row);
   });
@@ -1075,14 +1153,13 @@ function updateAdminGateBtn() {
 }
 document.getElementById('admin-toggle-gate-btn').onclick = (e) => {
   e.stopPropagation();
-  isGameGateOpen = !isGameGateOpen;
-  updateAdminGateBtn();
+  setGateStatus(!isGameGateOpen);
 };
 document.getElementById('admin-reset-scores-btn').onclick = (e) => {
   e.stopPropagation();
-  if (confirm('СБРОСИТЬ ВСЕ РЕЗУЛЬТАТЫ НА ТАБЛО?')) {
+  if (confirm('СБРОСИТЬ ОБЩЕЕ ТАБЛО РЕКОРДОВ У ВСЕХ ИГРОКОВ?')) {
     resetAllScores();
-    alert('ТАБЛО ОЧИЩЕНО!');
+    alert('ОБЩЕЕ ТАБЛО ОЧИЩЕНО!');
   }
 };
 document.getElementById('admin-panel-close-btn').onclick = (e) => {
@@ -1090,7 +1167,6 @@ document.getElementById('admin-panel-close-btn').onclick = (e) => {
   document.getElementById('admin-modal').classList.add('hidden');
 };
 
-// УПРАВЛЕНИЕ: ТАП В ЛЮБОЙ ТОЧКЕ ЭКРАНА
 const gameContainer = document.getElementById('game-container');
 
 function triggerJump(e) {
@@ -1120,6 +1196,9 @@ document.getElementById('retry-game-btn').onclick = (e) => {
   launchRun();
 };
 
+// Первичная загрузка общего рейтинга и статуса гейта при открытии
+syncGateStatus();
+fetchGlobalScores();
 gameLoop();
 </script>
 </body>
