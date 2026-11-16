@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARRIVALS & CHECK-IN BOARD • AEROFLOT LIVE</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700;800&family=Montserrat:wght@600;800;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: #070b14;
+      color: #f8fafc;
+      font-family: 'Montserrat', sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 36px;
+      background-image: radial-gradient(circle at 50% 0%, #13223f 0%, #070b14 75%);
+    }
+
+    /* Шапка табло аэропорта */
+    .board-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 18px;
+      border-bottom: 3px solid #1e293b;
+      margin-bottom: 18px;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+    .plane-badge {
+      width: 58px;
+      height: 58px;
+      background: linear-gradient(135deg, #ffcc00, #d97706);
+      color: #070b14;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      box-shadow: 0 0 25px rgba(255, 204, 0, 0.35);
+    }
+    .board-title {
+      font-size: clamp(24px, 3vw, 38px);
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: #ffcc00;
+      text-transform: uppercase;
+    }
+    .board-subtitle {
+      font-size: 13px;
+      color: #94a3b8;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .live-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid #10b981;
+      padding: 8px 14px;
+      border-radius: 8px;
+      color: #10b981;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      background: #10b981;
+      border-radius: 50%;
+      animation: pulse 1.2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.3; transform: scale(0.8); }
+    }
+    .clock-box {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 34px;
+      font-weight: 800;
+      color: #fff;
+      background: #0f172a;
+      border: 2px solid #334155;
+      padding: 8px 18px;
+      border-radius: 10px;
+      letter-spacing: 2px;
+    }
+
+    /* Таблица перекидного табло */
+    .table-head {
+      display: grid;
+      grid-template-columns: 90px 150px 1fr 180px 160px 230px;
+      padding: 12px 20px;
+      background: #0f172a;
+      border-radius: 10px 10px 0 0;
+      border: 1px solid #1e293b;
+      color: #94a3b8;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .board-rows {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 8px;
+    }
+    .board-rows::-webkit-scrollbar { width: 6px; }
+    .board-rows::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+    .flight-row {
+      display: grid;
+      grid-template-columns: 90px 150px 1fr 180px 160px 230px;
+      align-items: center;
+      padding: 14px 20px;
+      background: linear-gradient(180deg, #131c31 0%, #0d1424 100%);
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 20px;
+      font-weight: 800;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      position: relative;
+      transition: transform 0.3s ease, border-color 0.3s ease;
+    }
+    /* Разделительная линия перекидного табло (split-flap) */
+    .flight-row::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 1px;
+      background: rgba(0, 0, 0, 0.55);
+      pointer-events: none;
+    }
+
+    .flight-row.rank-1 {
+      background: linear-gradient(90deg, rgba(255, 204, 0, 0.22) 0%, #131c31 45%, #0d1424 100%);
+      border: 2px solid #ffcc00;
+      box-shadow: 0 0 25px rgba(255, 204, 0, 0.25);
+    }
+    .flight-row.rank-2 {
+      border-left: 5px solid #e2e8f0;
+    }
+    .flight-row.rank-3 {
+      border-left: 5px solid #d97706;
+    }
+
+    .col-rank { color: #94a3b8; }
+    .rank-1 .col-rank { color: #ffcc00; font-size: 24px; }
+
+    .col-flight { color: #38bdf8; }
+    .col-name {
+      color: #ffffff;
+      font-size: 22px;
+      letter-spacing: 1px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding-right: 12px;
+    }
+    .rank-1 .col-name { color: #ffcc00; }
+
+    .col-score {
+      color: #00e676;
+      font-size: 24px;
+    }
+    .col-progress {
+      color: #cbd5e1;
+      font-size: 16px;
+    }
+
+    .status-pill {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      letter-spacing: 1px;
+      text-align: center;
+      font-weight: 800;
+    }
+    .status-vip {
+      background: #ffcc00;
+      color: #070b14;
+    }
+    .status-ok {
+      background: rgba(0, 230, 118, 0.18);
+      color: #00e676;
+      border: 1px solid #00e676;
+    }
+    .status-run {
+      background: rgba(245, 158, 11, 0.18);
+      color: #fbbf24;
+      border: 1px solid #fbbf24;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #64748b;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 20px;
+      letter-spacing: 2px;
+    }
+
+    /* Нижняя панель ведущего */
+    .board-footer {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 2px solid #1e293b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: #94a3b8;
+    }
+    .ctrl-btns {
+      display: flex;
+      gap: 12px;
+    }
+    .ctrl-btn {
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #f8fafc;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .ctrl-btn:hover { background: #334155; }
+    .ctrl-btn.danger { border-color: #ef4444; color: #fca5a5; }
+    .ctrl-btn.danger:hover { background: rgba(239, 68, 68, 0.2); }
+  </style>
+</head>
+<body>
+
+  <div class="board-header">
+    <div class="header-left">
+      <div class="plane-badge">✈</div>
+      <div>
+        <div class="board-title">ARRIVALS & CHECK-IN BOARD</div>
+        <div class="board-subtitle">МЕЖДУНАРОДНЫЙ РЕЙС • РЕЙТИНГ ПАССАЖИРОВ</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="live-indicator">
+        <div class="dot"></div>
+        <span>LIVE SYNC</span>
+      </div>
+      <div class="clock-box" id="live-clock">00:00:00</div>
+    </div>
+  </div>
+
+  <div class="table-head">
+    <div>POS</div>
+    <div>FLIGHT</div>
+    <div>PASSENGER / ИМЯ</div>
+    <div>SCORE / БАЛЛЫ</div>
+    <div>ROUTE / ПУТЬ</div>
+    <div>STATUS / СТАТУС</div>
+  </div>
+
+  <div class="board-rows" id="board-container">
+    <div class="empty-state">ОЖИДАНИЕ ДАННЫХ РЕГИСТРАЦИИ ПАССАЖИРОВ...</div>
+  </div>
+
+  <div class="board-footer">
+    <div>ВСЕГО ПАССАЖИРОВ НА ТАБЛО: <strong id="total-players" style="color:#fff;">0</strong></div>
+    <div class="ctrl-btns">
+      <button class="ctrl-btn" onclick="toggleFullscreen()">⛶ НА ВЕСЬ ЭКРАН</button>
+      <button class="ctrl-btn danger" onclick="resetBoard()">🗑️ ОЧИСТИТЬ ТАБЛО</button>
+    </div>
+  </div>
+
+<script>
+const DB_URL = "https://game-welcome-default-rtdb.firebaseio.com";
+let lastSnapshot = "";
+
+// Живые часы в шапке табло
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const s = String(now.getSeconds()).padStart(2, '0');
+  document.getElementById('live-clock').textContent = `${h}:${m}:${s}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Полноэкранный режим для вывода на ТВ / проектор
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen().catch(() => {});
+  }
+}
+
+// Сброс результатов с экрана ведущего
+async function resetBoard() {
+  if (!confirm("Очистить все результаты на табло прилётов?")) return;
+  try {
+    await fetch(`${DB_URL}/airport_leaderboard.json`, { method: 'DELETE' });
+    lastSnapshot = "";
+    fetchBoardData();
+  } catch (e) {
+    alert("Ошибка соединения с базой");
+  }
+}
+
+// Получение и отрисовка результатов в реальном времени
+async function fetchBoardData() {
+  try {
+    const res = await fetch(`${DB_URL}/airport_leaderboard.json?t=${Date.now()}`);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const rawList = [];
+    if (data) {
+      Object.keys(data).forEach(k => {
+        if (data[k] && typeof data[k].score === 'number') {
+          rawList.push(data[k]);
+        }
+      });
+    }
+
+    // Берём лучший результат каждого уникального пассажира
+    const bestMap = {};
+    rawList.forEach(entry => {
+      const name = (entry.name || 'PASSENGER').trim().toUpperCase();
+      if (!bestMap[name] || entry.score > bestMap[name].score) {
+        bestMap[name] = { ...entry, name };
+      }
+    });
+
+    const sorted = Object.values(bestMap).sort((a, b) => b.score - a.score);
+    const snapshot = JSON.stringify(sorted);
+
+    // Перерисовываем табло только если появились новые данные
+    if (snapshot === lastSnapshot) return;
+    lastSnapshot = snapshot;
+
+    renderBoard(sorted);
+  } catch (e) {}
+}
+
+function renderBoard(players) {
+  const container = document.getElementById('board-container');
+  document.getElementById('total-players').textContent = players.length;
+
+  if (players.length === 0) {
+    container.innerHTML = '<div class="empty-state">НЕТ ЗАРЕГИСТРИРОВАННЫХ ПАССАЖИРОВ • СКАНИРУЙТЕ QR-КОД</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+
+  players.forEach((p, idx) => {
+    const rank = idx + 1;
+    const flightNo = `SU ${String(100 + rank).padStart(3, '0')}`;
+    const progress = p.progress || 0;
+
+    let rankClass = '';
+    let rankLabel = `#${rank}`;
+    if (rank === 1) {
+      rankClass = 'rank-1';
+      rankLabel = '👑 1';
+    } else if (rank === 2) {
+      rankClass = 'rank-2';
+    } else if (rank === 3) {
+      rankClass = 'rank-3';
+    }
+
+    let statusHtml = '';
+    if (rank === 1) {
+      statusHtml = '<span class="status-pill status-vip">1ST CLASS LEADER</span>';
+    } else if (p.isVictory) {
+      statusHtml = '<span class="status-pill status-ok">CHECKED IN ✓</span>';
+    } else {
+      statusHtml = '<span class="status-pill status-run">IN TERMINAL</span>';
+    }
+
+    const row = document.createElement('div');
+    row.className = `flight-row ${rankClass}`;
+    row.innerHTML = `
+      <div class="col-rank">${rankLabel}</div>
+      <div class="col-flight">${flightNo}</div>
+      <div class="col-name">${escapeHtml(p.name)}</div>
+      <div class="col-score">${p.score} PTS</div>
+      <div class="col-progress">${progress}% • ${p.time || 0}s</div>
+      <div>${statusHtml}</div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, m => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[m]));
+}
+
+// Автообновление каждые 2 секунды
+fetchBoardData();
+setInterval(fetchBoardData, 2000);
+</script>
+</body>
+</html>
